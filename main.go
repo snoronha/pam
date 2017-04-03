@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-    lib.ProcessSCADA()
+    // lib.ProcessSCADA()
     lib.ProcessEDNA()
 }
 
