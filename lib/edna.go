@@ -11,7 +11,7 @@ import (
     "time"
 )
 
-func ProcessEDNA() {
+func ProcessEDNA(startFileNumber int, endFileNumber int) {
     ednaAnomalyCount := map[string]int{
         "AFS_ALARM_ALARM": 0, "AFS_GROUND_ALARM": 0, "AFS_I_FAULT_FULL": 0, "AFS_I_FAULT_TEMP": 0,
         "FCI_FAULT_ALARM": 0, "FCI_I_FAULT_FULL": 0, "FCI_I_FAULT_TEMP": 0,
@@ -30,7 +30,7 @@ func ProcessEDNA() {
     }
 
     var writer *bufio.Writer
-    ofileName := "/Users/sanjaynoronha/Desktop/edna_out.txt"
+    ofileName := "/Users/sanjaynoronha/Desktop/edna_out_" + strconv.Itoa(startFileNumber) + "_" + strconv.Itoa(endFileNumber) + ".txt"
     if ofile, err := os.Create(ofileName); err == nil {
         defer ofile.Close()
         writer = bufio.NewWriter(ofile)
@@ -45,8 +45,7 @@ func ProcessEDNA() {
     for _, f  := range files {
         filePath := dir + "/" + f.Name()
         if strings.Contains(f.Name(), ".csv") {
-            // if fileNum > 222 {
-            if fileNum >= 0 {
+            if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) && strings.Contains(f.Name(), "803036.csv") {
                 processEDNAFile(filePath, fileNum, writer, startTime, ednaAnomalyCount, processEdnaAnomaly)
                 writer.Flush()
             }
@@ -60,10 +59,14 @@ func processEDNAFile(fileName string, fileNum int, writer *bufio.Writer, startTi
     longForm := "1/2/2006 3:04:05 PM"
 
     // create Windows for moving windows
-    zeroCurrentWindow := Window{StartPointer: 0, EndPointer: -1, MAXSIZE: 1000}
-    zeroPowerWindow   := Window{StartPointer: 0, EndPointer: -1, MAXSIZE: 1000}
-    zeroVoltageWindow := Window{StartPointer: 0, EndPointer: -1, MAXSIZE: 1000}
-    pfSpikesWindow    := Window{StartPointer: 0, EndPointer: -1, MAXSIZE: 1000}
+    var zeroCurrentWindows map[string]Window
+    zeroCurrentWindows = make(map[string]Window)
+    var zeroPowerWindows map[string]Window
+    zeroPowerWindows = make(map[string]Window)
+    var zeroVoltageWindows map[string]Window
+    zeroVoltageWindows = make(map[string]Window)
+    var pfSpikesWindows map[string]Window
+    pfSpikesWindows = make(map[string]Window)
     
     // open file
     if file, err := os.Open(fileName); err == nil {
@@ -128,67 +131,92 @@ func processEDNAFile(fileName string, fileNum int, writer *bufio.Writer, startTi
                     strings.Contains(extendedId, ".I.") && strings.Contains(extendedId, "_PH") &&
                     strings.Contains(extendedId, ".FDR.") && !strings.Contains(extendedId, "BKR.") {
                     value, _ := strconv.ParseFloat(strings.Replace(lineComponents[2], "\"", "", -1), 64)
+                    _, ok := zeroCurrentWindows[extendedId]
+                    if !ok {
+                        zeroCurrentWindows[extendedId] = Window{StartPointer: 0, EndPointer: -1, MAXSIZE: 1000}
+                    }
+                    zeroCurrentWindow := zeroCurrentWindows[extendedId]
                     zeroCurrentWindow.AddElement(ts, extendedId, value)
                     zeroCurrentWindow.SetStartPointer()
                     if value > -0.5 && value < 1 {
-                        if processAnomaly["ZERO_CURRENT_V3"] && zeroCurrentWindow.QuantileGreaterThanThreshold(0.01, 10.0) {
+                        if processAnomaly["ZERO_CURRENT_V3"] && zeroCurrentWindow.QuantileGreaterThanThreshold(0.01, 10.0, 24) {
                             anomalyCount["ZERO_CURRENT_V3"]++
-                            writer.WriteString(fmt.Sprintf("ZERO_CURRENT_V3,%s,%f,%s\n", extendedId, value, ts))
+                            writer.WriteString(fmt.Sprintf("ZERO_CURRENT_V3,%s,%.3f,%s\n", extendedId, value, ts))
                         }
                         prevPointer := zeroCurrentWindow.EndPointer - 1
                         if processAnomaly["ZERO_CURRENT_V4"] && zeroCurrentWindow.GreaterThanThreshold(prevPointer, 1.0) {
                             anomalyCount["ZERO_CURRENT_V4"]++
-                            writer.WriteString(fmt.Sprintf("ZERO_CURRENT_V4,%s,%f,%s\n", extendedId, value, ts))
+                            // fmt.Printf("[%d, %d] [%s] value=%.2f\n", zeroCurrentWindow.StartPointer, zeroCurrentWindow.EndPointer, extendedId, value)
+                            writer.WriteString(fmt.Sprintf("ZERO_CURRENT_V4,%s,%.3f,%s\n", extendedId, value, ts))
                         }
 
                         mean := zeroCurrentWindow.Mean()
                         _ = mean
-                        // if numLines % 100 == 0 {
-                        // fmt.Printf("%d: [%d, %d] value: %.2f mean: %.3f\n", numLines, zeroCurrentWindow.startPointer, zeroCurrentWindow.EndPointer, value, mean)
-                        // }
+                        if numLines % 100 == 0 {
+                            // fmt.Printf("%d: [%d, %d] value: %.2f mean: %.3f\n", numLines, zeroCurrentWindow.StartPointer, zeroCurrentWindow.EndPointer, value, mean)
+                        }
                     }
+                    zeroCurrentWindows[extendedId] = zeroCurrentWindow
                 }
 
                 if processAnomaly["PF_SPIKES_V3"] &&
                     strings.Contains(extendedId, ".PF.") && strings.Contains(extendedId, "_PH") &&
                     strings.Contains(extendedId, ".FDR.") && !strings.Contains(extendedId, "BKR.") {
                     value, _ := strconv.ParseFloat(strings.Replace(lineComponents[2], "\"", "", -1), 64)
-                    zeroPowerWindow.AddElement(ts, extendedId, value)
-                    zeroPowerWindow.SetStartPointer()
+                    _, ok := pfSpikesWindows[extendedId]
+                    if !ok {
+                        pfSpikesWindows[extendedId] = Window{StartPointer: 0, EndPointer: -1, MAXSIZE: 1000}
+                    }
+                    pfSpikesWindow := pfSpikesWindows[extendedId]
+                    pfSpikesWindow.AddElement(ts, extendedId, value)
+                    pfSpikesWindow.SetStartPointer()
                     if value < 0.75 {
-                        if pfSpikesWindow.QuantileGreaterThanThreshold(0.01, 0.8) {
-                            anomalyCount["PF_SPIKES_V3"]++
+                        if pfSpikesWindow.QuantileGreaterThanThreshold(0.01, 0.8, 24) {
+                            // anomalyCount["PF_SPIKES_V3"]++
+                            // writer.WriteString(fmt.Sprintf("PF_SPIKES_V3,%s,%.3f,%s\n", extendedId, value, ts))
                         }
                     }
+                    pfSpikesWindows[extendedId] = pfSpikesWindow
                 }
 
                 if (processAnomaly["ZERO_POWER_V3"] || processAnomaly["ZERO_POWER_V4"]) &&
                     strings.Contains(extendedId, ".MW") &&
                     strings.Contains(extendedId, ".FDR.") && !strings.Contains(extendedId, "BKR.") {
                     value, _ := strconv.ParseFloat(strings.Replace(lineComponents[2], "\"", "", -1), 64)
+                    _, ok := zeroPowerWindows[extendedId]
+                    if !ok {
+                        zeroPowerWindows[extendedId] = Window{StartPointer: 0, EndPointer: -1, MAXSIZE: 1000}
+                    }
+                    zeroPowerWindow := zeroPowerWindows[extendedId]
                     zeroPowerWindow.AddElement(ts, extendedId, value)
                     zeroPowerWindow.SetStartPointer()
                     if value > -0.5 && value < 0.1 {
-                        if zeroPowerWindow.QuantileGreaterThanThreshold(0.01, 0.5) {
+                        if zeroPowerWindow.QuantileGreaterThanThreshold(0.01, 0.5, 24) {
                             anomalyCount["ZERO_POWER_V3"]++
-                            writer.WriteString(fmt.Sprintf("ZERO_POWER_V3,%s,%f,%s\n", extendedId, value, ts))
+                            writer.WriteString(fmt.Sprintf("ZERO_POWER_V3,%s,%.3f,%s\n", extendedId, value, ts))
                         }
                         prevPointer := zeroPowerWindow.EndPointer - 1
                         if zeroPowerWindow.GreaterThanThreshold(prevPointer, 0.1) {
                             anomalyCount["ZERO_POWER_V4"]++
-                            writer.WriteString(fmt.Sprintf("ZERO_POWER_V4,%s,%f,%s\n", extendedId, value, ts))
+                            writer.WriteString(fmt.Sprintf("ZERO_POWER_V4,%s,%.3f,%s\n", extendedId, value, ts))
                         }
                     }
+                    zeroPowerWindows[extendedId] = zeroPowerWindow
                 }
 
                 if (processAnomaly["ZERO_VOLTAGE_V3"] || processAnomaly["ZERO_VOLTAGE_V4"]) &&
                     strings.Contains(extendedId, ".V.") && strings.Contains(extendedId, "_PH") &&
                     strings.Contains(extendedId, ".FDR.") && !strings.Contains(extendedId, "BKR.") {
                     value, _ := strconv.ParseFloat(strings.Replace(lineComponents[2], "\"", "", -1), 64)
+                    _, ok := zeroVoltageWindows[extendedId]
+                    if !ok {
+                        zeroVoltageWindows[extendedId] = Window{StartPointer: 0, EndPointer: -1, MAXSIZE: 1000}
+                    }
+                    zeroVoltageWindow := zeroVoltageWindows[extendedId]
                     zeroVoltageWindow.AddElement(ts, extendedId, value)
                     zeroVoltageWindow.SetStartPointer()
                     if value > -0.5 && value < 1.0 {
-                        if zeroVoltageWindow.QuantileGreaterThanThreshold(0.01, 90.0) {
+                        if zeroVoltageWindow.QuantileGreaterThanThreshold(0.01, 90.0, 24) {
                             anomalyCount["ZERO_VOLTAGE_V3"]++
                             writer.WriteString(fmt.Sprintf("ZERO_VOLTAGE_V3,%s,%f,%s\n", extendedId, value, ts))
                         }
@@ -198,6 +226,7 @@ func processEDNAFile(fileName string, fileNum int, writer *bufio.Writer, startTi
                             writer.WriteString(fmt.Sprintf("ZERO_VOLTAGE_V4,%s,%f,%s\n", extendedId, value, ts))
                         }
                     }
+                    zeroVoltageWindows[extendedId] = zeroVoltageWindow
                 }
 
                 if processAnomaly["THD_SPIKES_V3"] && strings.Contains(extendedId, ".THD_") && strings.Contains(extendedId, "urrent") {

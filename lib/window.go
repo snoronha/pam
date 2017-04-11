@@ -36,7 +36,7 @@ func (w *Window) Mean() float64 {
     return sum/float64(numElems)
 }
 
-func (w *Window) QuantileGreaterThanThreshold(quantile float64, threshold float64) bool {
+func (w *Window) QuantileGreaterThanThreshold(quantile float64, threshold float64, minElements int) bool {
     numElems     := 0
     greaterElems := 0
     start        := w.StartPointer
@@ -50,7 +50,15 @@ func (w *Window) QuantileGreaterThanThreshold(quantile float64, threshold float6
         }
         numElems++
     }
-    return float64(greaterElems)/float64(numElems) >= quantile
+    if minElements > 0 {
+        if numElems >= minElements {
+            return float64(greaterElems)/float64(numElems) >= quantile
+        } else {
+            return false
+        }
+    } else {
+        return float64(greaterElems)/float64(numElems) >= quantile
+    }
 }
 
 func (w *Window) GreaterThanThreshold(elementIndex int, threshold float64) bool {
@@ -120,3 +128,4 @@ func (w *Window) SetStartPointer() {
         }
     }
 }
+

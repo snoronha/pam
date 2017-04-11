@@ -11,7 +11,7 @@ import (
     "time"
 )
 
-func ProcessSCADA() {
+func ProcessSCADA(startFileNumber int, endFileNumber int) {
     scadaAnomalyCount := map[string]int{
         "BKR_CLOSE":           0, "BKR_FAIL_TO_OPR":      0, "BKR_OPEN":     0, "CURRENT_LIMIT": 0,
         "FAULT_ALARM":         0, "FAULT_CURRENT":        0, "FC_NO_BO":     0,
