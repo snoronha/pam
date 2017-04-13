@@ -19,13 +19,13 @@ func main() {
             panic(err)
         }
         // lib.ProcessSCADA(startFileNumber, endFileNumber)
-        // lib.ProcessEDNA(startFileNumber, endFileNumber)
+        lib.ProcessEDNA(startFileNumber, endFileNumber)
     } else {
         // lib.ProcessSCADA(0, -1)
-        // lib.ProcessEDNA(0, -1)
+        lib.ProcessEDNA(0, -1)
     }
 
-    lib.CompareAllAnomsWithEDNAAnoms()
+    // lib.CompareAllAnomsWithEDNAAnoms()
     
 }
 

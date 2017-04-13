@@ -6,6 +6,7 @@ import (
     "log"
     "os"
     "regexp"
+    "sort"
     "strconv"
     "strings"
     "time"
@@ -16,8 +17,8 @@ func CompareAllAnomsWithEDNAAnoms() {
     newLongForm := "2006-01-02 15:04:05 +0000 UTC"
     oldFileName := "/Users/sanjaynoronha/Desktop/all_anoms_feb2015.csv"
     newFileName := "/Users/sanjaynoronha/Desktop/edna_out.txt"
-    // oldFileName := "/Users/sanjaynoronha/Desktop/all_anoms_805432.csv"
-    // newFileName := "/Users/sanjaynoronha/Desktop/edna_805432.txt"
+    // oldFileName := "/Users/sanjaynoronha/Desktop/all_anoms_811635.csv"
+    // newFileName := "/Users/sanjaynoronha/Desktop/edna_811635.txt"
 
     oldMap := make(map[string]map[string]map[string]map[string]string)
     newMap := make(map[string]map[string]map[string]map[string]string)
@@ -132,7 +133,12 @@ func CompareAllAnomsWithEDNAAnoms() {
         elapsed := time.Since(startTime)
         fmt.Printf("{numLines: %d, goodCount: %d, badCount: %d, elapsed: %s}\n", numLines, goodCount, badCount, elapsed)
 
+        var feederIds []string
         for feederId := range newMap {
+            feederIds = append(feederIds, feederId)
+        }
+        sort.Strings(feederIds)
+        for _, feederId := range feederIds {
             for fault := range newMap[feederId] {
                 for phase := range newMap[feederId][fault] {
                     oldCount := len(oldMap[feederId][fault][phase])
@@ -144,12 +150,12 @@ func CompareAllAnomsWithEDNAAnoms() {
                         absDiff = newCount - oldCount
                     }
                     if absDiff >= 100 {
-                        fmt.Printf("[%s][%s][%s] = {old:%d, new:%d]\n", feederId, fault, phase, len(oldMap[feederId][fault][phase]), len(newMap[feederId][fault][phase]))
+                        fmt.Printf("[%s][%s][%s] = {old:%d, new:%d]\n", feederId, fault, phase, oldCount, newCount)
                     }
                 }
             }
         }
-
+        
         // check for errors
         if err = oldScanner.Err(); err != nil {
             log.Fatal(err)

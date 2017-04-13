@@ -6,6 +6,7 @@ import (
     "io/ioutil"
     "log"
     "os"
+    "regexp"
     "strconv"
     "strings"
     "time"
@@ -45,7 +46,7 @@ func ProcessEDNA(startFileNumber int, endFileNumber int) {
     for _, f  := range files {
         filePath := dir + "/" + f.Name()
         if strings.Contains(f.Name(), ".csv") {
-            if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) && strings.Contains(f.Name(), "803036.csv") {
+            if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
                 processEDNAFile(filePath, fileNum, writer, startTime, ednaAnomalyCount, processEdnaAnomaly)
                 writer.Flush()
             }
@@ -67,6 +68,9 @@ func processEDNAFile(fileName string, fileNum int, writer *bufio.Writer, startTi
     zeroVoltageWindows = make(map[string]Window)
     var pfSpikesWindows map[string]Window
     pfSpikesWindows = make(map[string]Window)
+
+    fdrRegexp, _   := regexp.Compile(`\.([0-9]{6})[\._]`)
+    phaseRegexp, _ := regexp.Compile(`\.([ABC\-])_PH`)
     
     // open file
     if file, err := os.Open(fileName); err == nil {
@@ -85,12 +89,22 @@ func processEDNAFile(fileName string, fileNum int, writer *bufio.Writer, startTi
                 numLines++
 
                 // Fail good data as early as possible
-                extendedId := strings.Replace(lineComponents[0], "\"", "", -1)
-                ts, _      := time.Parse(longForm, strings.Replace(lineComponents[1], "\"", "", -1))
-                _ = ts
+                extendedId  := strings.Replace(lineComponents[0], "\"", "", -1)
+                ts, _       := time.Parse(longForm, strings.Replace(lineComponents[1], "\"", "", -1))
+                devicePhaseMatches := phaseRegexp.FindStringSubmatch(extendedId)
+                devicePhase := "-"
+                if len(devicePhaseMatches) > 0 {
+                    devicePhase = devicePhaseMatches[1]
+                }
+                feederIdMatches := fdrRegexp.FindStringSubmatch(extendedId)
+                feederId    := ""
+                if len(feederIdMatches) > 0 {
+                    feederId = feederIdMatches[1]
+                }
                 
                 if strings.Contains(extendedId, ".AFS.") {
                     // handle potential AFS anomalies
+                    deviceId := strings.Split(extendedId, ".")[3]
                     if processAnomaly["AFS_ALARM_ALARM"] && strings.Contains(extendedId, ".ALARM") && strings.Contains(lineComponents[3], "ALARM") {
                         anomalyCount["AFS_ALARM_ALARM"] += 1
                     } else if processAnomaly["AFS_GROUND_ALARM"] && strings.Contains(extendedId, ".GROUND") && strings.Contains(lineComponents[3], "ALARM") {
@@ -100,10 +114,11 @@ func processEDNAFile(fileName string, fileNum int, writer *bufio.Writer, startTi
                         if value >= 600 {
                             if value >= 900 {
                                 anomalyCount["AFS_I_FAULT_FULL"]++
-                                writer.WriteString(fmt.Sprintf("AFS_I_FAULT_FULL,%s,%d,%s\n", extendedId, value, ts))
+                                // ,Anomaly,DeviceId,DevicePh,DeviceType,Feeder,Signal,Value,Time
+                                writer.WriteString(fmt.Sprintf("0,AFS_I_FAULT_FULL,%s,%s,AFS,%s,%s,%d,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                             } else {
                                 anomalyCount["AFS_I_FAULT_TEMP"]++
-                                writer.WriteString(fmt.Sprintf("AFS_I_FAULT_TEMP,%s,%d,%s\n", extendedId, value, ts))
+                                writer.WriteString(fmt.Sprintf("0,AFS_I_FAULT_TEMP,%s,%s,AFS,%s,%s,%d,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                             }
                         }
                     }
@@ -116,12 +131,13 @@ func processEDNAFile(fileName string, fileNum int, writer *bufio.Writer, startTi
                     } else if (processAnomaly["FCI_I_FAULT_FULL"] || processAnomaly["FCI_I_FAULT_TEMP"]) && strings.Contains(extendedId, ".I_FAULT") {
                         value, _ := strconv.Atoi(strings.Replace(lineComponents[2], "\"", "", -1))
                         if value >= 600 {
+                            deviceId := strings.Split(extendedId, ".")[3]
                             if value >= 900 {
                                 anomalyCount["FCI_I_FAULT_FULL"]++
-                                writer.WriteString(fmt.Sprintf("FCI_I_FAULT_FULL,%s,%d,%s\n", extendedId, value, ts))
+                                writer.WriteString(fmt.Sprintf("0,FCI_I_FAULT_FULL,%s,%s,FCI,%s,%s,%d,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                             } else {
                                 anomalyCount["FCI_I_FAULT_TEMP"]++;
-                                writer.WriteString(fmt.Sprintf("FCI_I_FAULT_TEMP,%s,%d,%s\n", extendedId, value, ts))
+                                writer.WriteString(fmt.Sprintf("0,FCI_I_FAULT_TEMP,%s,%s,FCI,%s,%s,%d,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                             }
                         }
                     }
@@ -139,15 +155,16 @@ func processEDNAFile(fileName string, fileNum int, writer *bufio.Writer, startTi
                     zeroCurrentWindow.AddElement(ts, extendedId, value)
                     zeroCurrentWindow.SetStartPointer()
                     if value > -0.5 && value < 1 {
+                        deviceId := strings.Split(strings.Split(extendedId, ".")[2], "_")[1]
                         if processAnomaly["ZERO_CURRENT_V3"] && zeroCurrentWindow.QuantileGreaterThanThreshold(0.01, 10.0, 24) {
                             anomalyCount["ZERO_CURRENT_V3"]++
-                            writer.WriteString(fmt.Sprintf("ZERO_CURRENT_V3,%s,%.3f,%s\n", extendedId, value, ts))
+                            writer.WriteString(fmt.Sprintf("0,ZERO_CURRENT_V3,%s,%s,PHASER,%s,%s,%.3f,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                         }
                         prevPointer := zeroCurrentWindow.EndPointer - 1
                         if processAnomaly["ZERO_CURRENT_V4"] && zeroCurrentWindow.GreaterThanThreshold(prevPointer, 1.0) {
                             anomalyCount["ZERO_CURRENT_V4"]++
                             // fmt.Printf("[%d, %d] [%s] value=%.2f\n", zeroCurrentWindow.StartPointer, zeroCurrentWindow.EndPointer, extendedId, value)
-                            writer.WriteString(fmt.Sprintf("ZERO_CURRENT_V4,%s,%.3f,%s\n", extendedId, value, ts))
+                            writer.WriteString(fmt.Sprintf("0,ZERO_CURRENT_V4,%s,%s,PHASER,%s,%s,%.3f,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                         }
 
                         mean := zeroCurrentWindow.Mean()
@@ -171,6 +188,7 @@ func processEDNAFile(fileName string, fileNum int, writer *bufio.Writer, startTi
                     pfSpikesWindow.AddElement(ts, extendedId, value)
                     pfSpikesWindow.SetStartPointer()
                     if value < 0.75 {
+                        // deviceId := strings.Split(strings.Split(extendedId, ".")[2], "_")[1]
                         if pfSpikesWindow.QuantileGreaterThanThreshold(0.01, 0.8, 24) {
                             // anomalyCount["PF_SPIKES_V3"]++
                             // writer.WriteString(fmt.Sprintf("PF_SPIKES_V3,%s,%.3f,%s\n", extendedId, value, ts))
@@ -191,14 +209,19 @@ func processEDNAFile(fileName string, fileNum int, writer *bufio.Writer, startTi
                     zeroPowerWindow.AddElement(ts, extendedId, value)
                     zeroPowerWindow.SetStartPointer()
                     if value > -0.5 && value < 0.1 {
+                        deviceId    := "-"
+                        deviceIdArr := strings.Split(strings.Split(extendedId, ".")[2], "_")
+                        if len(deviceIdArr) >= 2 {
+                            deviceId = strings.Split(strings.Split(extendedId, ".")[2], "_")[1]
+                        }
                         if zeroPowerWindow.QuantileGreaterThanThreshold(0.01, 0.5, 24) {
                             anomalyCount["ZERO_POWER_V3"]++
-                            writer.WriteString(fmt.Sprintf("ZERO_POWER_V3,%s,%.3f,%s\n", extendedId, value, ts))
+                            writer.WriteString(fmt.Sprintf("0,ZERO_POWER_V3,%s,%s,PHASER,%s,%s,%.3f,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                         }
                         prevPointer := zeroPowerWindow.EndPointer - 1
                         if zeroPowerWindow.GreaterThanThreshold(prevPointer, 0.1) {
                             anomalyCount["ZERO_POWER_V4"]++
-                            writer.WriteString(fmt.Sprintf("ZERO_POWER_V4,%s,%.3f,%s\n", extendedId, value, ts))
+                            writer.WriteString(fmt.Sprintf("0,ZERO_POWER_V4,%s,%s,PHASER,%s,%s,%.3f,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                         }
                     }
                     zeroPowerWindows[extendedId] = zeroPowerWindow
@@ -216,14 +239,15 @@ func processEDNAFile(fileName string, fileNum int, writer *bufio.Writer, startTi
                     zeroVoltageWindow.AddElement(ts, extendedId, value)
                     zeroVoltageWindow.SetStartPointer()
                     if value > -0.5 && value < 1.0 {
+                        deviceId := strings.Split(strings.Split(extendedId, ".")[2], "_")[1]
                         if zeroVoltageWindow.QuantileGreaterThanThreshold(0.01, 90.0, 24) {
                             anomalyCount["ZERO_VOLTAGE_V3"]++
-                            writer.WriteString(fmt.Sprintf("ZERO_VOLTAGE_V3,%s,%f,%s\n", extendedId, value, ts))
+                            writer.WriteString(fmt.Sprintf("0,ZERO_VOLTAGE_V3,%s,%s,PHASER,%s,%s,%.3f,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                         }
                         prevPointer := zeroVoltageWindow.EndPointer - 1
                         if zeroVoltageWindow.GreaterThanThreshold(prevPointer, 1.0) {
                             anomalyCount["ZERO_VOLTAGE_V4"]++
-                            writer.WriteString(fmt.Sprintf("ZERO_VOLTAGE_V4,%s,%f,%s\n", extendedId, value, ts))
+                            writer.WriteString(fmt.Sprintf("0,ZERO_VOLTAGE_V4,%s,%s,PHASER,%s,%s,%.3f,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                         }
                     }
                     zeroVoltageWindows[extendedId] = zeroVoltageWindow
