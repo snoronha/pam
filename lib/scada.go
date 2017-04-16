@@ -30,7 +30,7 @@ func ProcessSCADA(startFileNumber int, endFileNumber int) {
     }
 
     var writer *bufio.Writer
-    ofileName := "/Users/sanjaynoronha/Desktop/scada_out.txt"
+    ofileName := "/Users/sanjaynoronha/Desktop/scada_out_" + strconv.Itoa(startFileNumber) + "_" + strconv.Itoa(endFileNumber) + ".txt"
     if ofile, err := os.Create(ofileName); err == nil {
         defer ofile.Close()
         writer = bufio.NewWriter(ofile)
@@ -55,12 +55,11 @@ func ProcessSCADA(startFileNumber int, endFileNumber int) {
 func processSCADAFile(fileName string, fileNum int, writer *bufio.Writer, startTime time.Time,  anomalyCount map[string]int, processAnomaly map[string]bool) {
     // OBSERV_KEY,OBSERV_TIMESTAMP_GMT,localTime,OBSERV_DATA,OBSERV_SCADA_FAC_NAME,AMP_NM_FAC,OBSERV_EQUIP_TYPE,OBSERV_EQUIP_ID,substationId,feederNumber,OBSERV_EQUIP_ACTION,OBSERV_SOURCE,OBSERV_FTO_FLAG,OBSERV_CREATE_TS,OBSERV_LFO_TIMESTAMP,OBSERV_AOR,DATE_KEY_GMT,DATE_KEY_LOCAL,
     // "35527944","2012-01-05 21:49:44.0","2012-01-05 16:49:44.0","DAYTONA_BEACH FEEDER 2W160_F0131 BKR OPEN-CLOSED","DATNA_BC","Daytona Beach","FEEDER BKR","2W160_F0131","52","100131","OPEN-CLOSE","DIST","false","2012-01-05 16:49:38.547","2012-01-05 21:50:59.0","DYDAYTNS","7443","7443",
-    // Magic date in format of input file. Used for date parsing
+
     longForm := "2006-01-02 15:04:05"
 
     // open file
     if file, err := os.Open(fileName); err == nil {
-        // make sure it gets closed
         defer file.Close()
 
         // init counting variables
@@ -74,27 +73,54 @@ func processSCADAFile(fileName string, fileNum int, writer *bufio.Writer, startT
             if len(lineComponents) >= 16 {
                 numLines++
 
-                observData   := lineComponents[3]
+                observKey    := strings.Replace(lineComponents[0], "\"", "", -1)
+                observData   := strings.Replace(lineComponents[3], "\"", "", -1)
+                observDataComponents := strings.Split(observData, " ")
+                // devType      := observDataComponents[1]
+                deviceId, devicePhase := "-", "-"
+                if len(observDataComponents) >= 4 {
+                    deviceId     = observDataComponents[2]
+                    devicePhase  = observDataComponents[3]
+                }
+                feederId     := strings.Replace(lineComponents[9], "\"", "", -1)
                 observTs, _  := time.Parse(longForm, strings.Replace(lineComponents[1], "\"", "", -1))
-                _ = observTs
+                value        := "-"
 
-                if strings.Contains(observData, "FEED") && strings.Contains(observData, "BKR") {
+                if strings.Contains(observData, "FEED") && strings.Contains(observData, "BKR") &&
+                    !strings.Contains(observData, "Composite") && !strings.Contains(observData, "STATUS") &&
+                    !strings.Contains(observData, "DEFINITION") && !strings.Contains(observData, "CTRL") &&
+                    !strings.Contains(observData, "OVERRIDDEN") && !strings.Contains(observData, "has experienced") &&
+                    !strings.Contains(observData, "Comments:") && !strings.Contains(observData, "ISD POINT") &&
+                    !strings.Contains(observData, "ISD POINT") {
                     // handle potential BKR anomalies
-                    if processAnomaly["BKR_OPEN"] && strings.Contains(observData, "OPEN") {
+                    breakerParsed := breakerParser(observData)
+                    if processAnomaly["BKR_OPEN"] && strings.Contains(breakerParsed, "OPEN") {
                         anomalyCount["BKR_OPEN"] += 1
-                    } else if processAnomaly["BKR_CLOSE"] && strings.Contains(observData, "CLOSE") {
+                        writer.WriteString(fmt.Sprintf("0,BKR_OPEN,%s,%s,AFS,%s,%s,%s,%s\n", deviceId, devicePhase, feederId, observData, value, observTs))
+                    }
+                    if processAnomaly["BKR_CLOSE"] && strings.Contains(breakerParsed, "CLOSE") {
                         anomalyCount["BKR_CLOSE"] += 1
-                    } else if processAnomaly["BKR_OPEN"] && strings.Contains(observData, "OPEN_CLOSE_OPEN") {
+                        writer.WriteString(fmt.Sprintf("0,BKR_CLOSE,%s,%s,AFS,%s,%s,%s,%s\n", deviceId, devicePhase, feederId, observData, value, observTs))
+                    }
+                    if processAnomaly["BKR_OPEN"] && strings.Contains(breakerParsed, "OPEN_CLOSE_OPEN") {
                         anomalyCount["BKR_OPEN"] += 1
-                    } else if processAnomaly["BKR_CLOSE"] && strings.Contains(observData, "CLOSE_OPEN_CLOSE") {
+                        writer.WriteString(fmt.Sprintf("0,BKR_OPEN,%s,%s,AFS,%s,%s,%s,%s\n", deviceId, devicePhase, feederId, observData, value, observTs))
+                    }
+                    if processAnomaly["BKR_CLOSE"] && strings.Contains(breakerParsed, "CLOSE_OPEN_CLOSE") {
                         anomalyCount["BKR_CLOSE"] += 1
-                    } else if processAnomaly["BKR_FAIL_TO_OPR"] && strings.Contains(observData, "FAIL_TO_OPR") {
+                        writer.WriteString(fmt.Sprintf("0,BKR_CLOSE,%s,%s,AFS,%s,%s,%s,%s\n", deviceId, devicePhase, feederId, observData, value, observTs))
+                    }
+                    if processAnomaly["BKR_FAIL_TO_OPR"] && strings.Contains(breakerParsed, "FAIL_TO_OPR") {
                         anomalyCount["BKR_FAIL_TO_OPR"] += 1
+                        writer.WriteString(fmt.Sprintf("0,BKR_FAIL_TO_OPR,%s,%s,AFS,%s,%s,%s,%s\n", deviceId, devicePhase, feederId, observData, value, observTs))
                     }
                 }
 
-                if strings.Contains(observData, " FAULT ") && strings.Contains(observData, " ALARM ") {
+                if strings.Contains(observData, " FAULT ") && strings.Contains(observData, " ALARM") &&
+                    !strings.Contains(observData, " ANALOG ") && !strings.Contains(observData, " STATUS ") {
+                    devicePhase = devicePhase[0:1]
                     anomalyCount["FAULT_ALARM"] += 1
+                    writer.WriteString(fmt.Sprintf("%s,BKR_FAIL_TO_OPR,%s,%s,AFS,%s,%s,%s,%s\n", observKey, deviceId, devicePhase, feederId, observData, value, observTs))
                 }
 
                 if strings.Contains(observData, "LIM-HIGH") {
@@ -109,7 +135,7 @@ func processSCADAFile(fileName string, fileNum int, writer *bufio.Writer, startT
                     }
                 }
 
-                if strings.Contains(observData, "AMP LIM-1 HIGH") && strings.Contains(observData, "ALARM") {
+                if strings.Contains(observData, "AMP LIM-1 HIGH") {
                     anomalyCount["CURRENT_LIMIT"] += 1
                 }
 
@@ -171,6 +197,7 @@ func processSCADAFile(fileName string, fileNum int, writer *bufio.Writer, startT
                 anomalyStr += ", " + k + ": " + strconv.Itoa(v)
             }
         }
+
         elapsed := time.Since(startTime)
         fmt.Printf("{id: %d, filePath: \"%s\", numLines: %d, elapsed: %s%s}\n", fileNum, fileName, numLines, elapsed, anomalyStr)
         
@@ -182,4 +209,15 @@ func processSCADAFile(fileName string, fileNum int, writer *bufio.Writer, startT
     } else {
         log.Fatal(err)
     }
+}
+
+func breakerParser(observData string) string {
+    observDataComponents := strings.Split(observData, " ")
+    if len(observDataComponents) < 5 {
+        return "UNKNOWN"
+    } else {
+        parsed := observDataComponents[4]
+        return strings.Replace( strings.Replace(parsed, "D", "", -1), "=", "_", -1)
+    }
+
 }

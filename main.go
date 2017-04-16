@@ -18,11 +18,11 @@ func main() {
         if endFileNumber, err = strconv.Atoi(argsWithProg[2]); err != nil {
             panic(err)
         }
-        // lib.ProcessSCADA(startFileNumber, endFileNumber)
-        lib.ProcessEDNA(startFileNumber, endFileNumber)
+        lib.ProcessSCADA(startFileNumber, endFileNumber)
+        // lib.ProcessEDNA(startFileNumber, endFileNumber)
     } else {
-        // lib.ProcessSCADA(0, -1)
-        lib.ProcessEDNA(0, -1)
+        lib.ProcessSCADA(0, -1)
+        // lib.ProcessEDNA(0, -1)
     }
 
     // lib.CompareAllAnomsWithEDNAAnoms()

@@ -5,6 +5,7 @@ import (
     "fmt"
     "io/ioutil"
     "log"
+    "math"
     "os"
     "regexp"
     "strconv"
@@ -187,11 +188,11 @@ func processEDNAFile(fileName string, fileNum int, writer *bufio.Writer, startTi
                     pfSpikesWindow := pfSpikesWindows[extendedId]
                     pfSpikesWindow.AddElement(ts, extendedId, value)
                     pfSpikesWindow.SetStartPointer()
-                    if value < 0.75 {
-                        // deviceId := strings.Split(strings.Split(extendedId, ".")[2], "_")[1]
+                    if math.Abs(value) < 0.75 {
+                        deviceId := strings.Split(strings.Split(extendedId, ".")[2], "_")[1]
                         if pfSpikesWindow.QuantileGreaterThanThreshold(0.01, 0.8, 24) {
-                            // anomalyCount["PF_SPIKES_V3"]++
-                            // writer.WriteString(fmt.Sprintf("PF_SPIKES_V3,%s,%.3f,%s\n", extendedId, value, ts))
+                            anomalyCount["PF_SPIKES_V3"]++
+                            writer.WriteString(fmt.Sprintf("0,PF_SPIKES_V3,%s,%s,PHASER,%s,%s,%.3f,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                         }
                     }
                     pfSpikesWindows[extendedId] = pfSpikesWindow
