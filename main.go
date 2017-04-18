@@ -1,14 +1,16 @@
 package main
 
 import (
+    "fmt"
     "os"
+    "regexp"
     "strconv"
     "anomaly/lib"
 )
 
 func main() {
     argsWithProg := os.Args
-    if len(argsWithProg) >= 3 {
+    if len(argsWithProg) >= 4 {
         var startFileNumber, endFileNumber int
         _, _ = startFileNumber, endFileNumber
         var err error
@@ -18,11 +20,18 @@ func main() {
         if endFileNumber, err = strconv.Atoi(argsWithProg[2]); err != nil {
             panic(err)
         }
-        lib.ProcessSCADA(startFileNumber, endFileNumber)
-        // lib.ProcessEDNA(startFileNumber, endFileNumber)
+        monthlyOrBulk := ""
+        var isBulkRegexp = regexp.MustCompile(`^b.*`)
+        isBulk := isBulkRegexp.MatchString(argsWithProg[3])
+        if isBulk {
+            monthlyOrBulk = "bulk"
+        } else {
+            monthlyOrBulk = "monthly"
+        }
+        // lib.ProcessSCADA(startFileNumber, endFileNumber)
+        lib.ProcessEDNA(startFileNumber, endFileNumber, monthlyOrBulk)
     } else {
-        lib.ProcessSCADA(0, -1)
-        // lib.ProcessEDNA(0, -1)
+        fmt.Println("Usage:   anomaly <startFileNumber> <endFileNumber> <monthlyOrBulk>\nExample: anomaly 0 -1 monthly")
     }
 
     // lib.CompareAllAnomsWithEDNAAnoms()

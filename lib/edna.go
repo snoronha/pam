@@ -13,7 +13,7 @@ import (
     "time"
 )
 
-func ProcessEDNA(startFileNumber int, endFileNumber int) {
+func ProcessEDNA(startFileNumber int, endFileNumber int, monthlyOrBulk string) {
     ednaAnomalyCount := map[string]int{
         "AFS_ALARM_ALARM": 0, "AFS_GROUND_ALARM": 0, "AFS_I_FAULT_FULL": 0, "AFS_I_FAULT_TEMP": 0,
         "FCI_FAULT_ALARM": 0, "FCI_I_FAULT_FULL": 0, "FCI_I_FAULT_TEMP": 0,
@@ -32,7 +32,7 @@ func ProcessEDNA(startFileNumber int, endFileNumber int) {
     }
 
     var writer *bufio.Writer
-    ofileName := "/Users/sanjaynoronha/Desktop/edna_out_" + strconv.Itoa(startFileNumber) + "_" + strconv.Itoa(endFileNumber) + ".txt"
+    ofileName := "/Users/sanjaynoronha/Desktop/edna_" + monthlyOrBulk + "_" + strconv.Itoa(startFileNumber) + "_" + strconv.Itoa(endFileNumber) + ".csv"
     if ofile, err := os.Create(ofileName); err == nil {
         defer ofile.Close()
         writer = bufio.NewWriter(ofile)
@@ -41,23 +41,41 @@ func ProcessEDNA(startFileNumber int, endFileNumber int) {
     }
 
     startTime := time.Now()
-    dir       := "/Volumes/auto-grid-pam/DISK1/bulk_data/edna/response"
-    files, _  := ioutil.ReadDir(dir)
     fileNum   := 0
-    for _, f  := range files {
-        filePath := dir + "/" + f.Name()
-        if strings.Contains(f.Name(), ".csv") {
-            if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
-                processEDNAFile(filePath, fileNum, writer, startTime, ednaAnomalyCount, processEdnaAnomaly)
-                writer.Flush()
+    if monthlyOrBulk == "monthly" {
+        dir       := "/Volumes/auto-grid-pam/DISK1/pam-monthly-anomalies"
+        dirs, _   := ioutil.ReadDir(dir)
+        for _, d  := range dirs {
+            monthlyDir := dir + "/" + d.Name()
+            files, _  := ioutil.ReadDir(monthlyDir)
+            for _, f  := range files {
+                filePath := monthlyDir + "/" + f.Name()
+                if strings.Contains(f.Name(), ".csv") {
+                    if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
+                        processEDNAFile(filePath, fileNum, writer, startTime, ednaAnomalyCount, processEdnaAnomaly)
+                        writer.Flush()
+                    }
+                    fileNum++
+                }
             }
-            fileNum++
+        }
+    } else {
+        dir       := "/Volumes/auto-grid-pam/DISK1/bulk_data/edna/response"
+        files, _  := ioutil.ReadDir(dir)
+        for _, f  := range files {
+            filePath := dir + "/" + f.Name()
+            if strings.Contains(f.Name(), ".csv") {
+                if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
+                    processEDNAFile(filePath, fileNum, writer, startTime, ednaAnomalyCount, processEdnaAnomaly)
+                    writer.Flush()
+                }
+                fileNum++
+            }
         }
     }
 }
 
 func processEDNAFile(fileName string, fileNum int, writer *bufio.Writer, startTime time.Time, anomalyCount map[string]int, processAnomaly map[string]bool) {
-    // Magic date in format of input file. Used for date parsing
     longForm := "1/2/2006 3:04:05 PM"
 
     // create Windows for moving windows
@@ -189,10 +207,10 @@ func processEDNAFile(fileName string, fileNum int, writer *bufio.Writer, startTi
                     pfSpikesWindow.AddElement(ts, extendedId, value)
                     pfSpikesWindow.SetStartPointer()
                     if math.Abs(value) < 0.75 {
-                        deviceId := strings.Split(strings.Split(extendedId, ".")[2], "_")[1]
+                        // deviceId := strings.Split(strings.Split(extendedId, ".")[2], "_")[1]
                         if pfSpikesWindow.QuantileGreaterThanThreshold(0.01, 0.8, 24) {
                             anomalyCount["PF_SPIKES_V3"]++
-                            writer.WriteString(fmt.Sprintf("0,PF_SPIKES_V3,%s,%s,PHASER,%s,%s,%.3f,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
+                            // writer.WriteString(fmt.Sprintf("0,PF_SPIKES_V3,%s,%s,PHASER,%s,%s,%.3f,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                         }
                     }
                     pfSpikesWindows[extendedId] = pfSpikesWindow

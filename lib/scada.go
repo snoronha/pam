@@ -30,7 +30,7 @@ func ProcessSCADA(startFileNumber int, endFileNumber int) {
     }
 
     var writer *bufio.Writer
-    ofileName := "/Users/sanjaynoronha/Desktop/scada_out_" + strconv.Itoa(startFileNumber) + "_" + strconv.Itoa(endFileNumber) + ".txt"
+    ofileName := "/Users/sanjaynoronha/Desktop/scada_out_" + strconv.Itoa(startFileNumber) + "_" + strconv.Itoa(endFileNumber) + ".csv"
     if ofile, err := os.Create(ofileName); err == nil {
         defer ofile.Close()
         writer = bufio.NewWriter(ofile)
@@ -53,9 +53,6 @@ func ProcessSCADA(startFileNumber int, endFileNumber int) {
 }
 
 func processSCADAFile(fileName string, fileNum int, writer *bufio.Writer, startTime time.Time,  anomalyCount map[string]int, processAnomaly map[string]bool) {
-    // OBSERV_KEY,OBSERV_TIMESTAMP_GMT,localTime,OBSERV_DATA,OBSERV_SCADA_FAC_NAME,AMP_NM_FAC,OBSERV_EQUIP_TYPE,OBSERV_EQUIP_ID,substationId,feederNumber,OBSERV_EQUIP_ACTION,OBSERV_SOURCE,OBSERV_FTO_FLAG,OBSERV_CREATE_TS,OBSERV_LFO_TIMESTAMP,OBSERV_AOR,DATE_KEY_GMT,DATE_KEY_LOCAL,
-    // "35527944","2012-01-05 21:49:44.0","2012-01-05 16:49:44.0","DAYTONA_BEACH FEEDER 2W160_F0131 BKR OPEN-CLOSED","DATNA_BC","Daytona Beach","FEEDER BKR","2W160_F0131","52","100131","OPEN-CLOSE","DIST","false","2012-01-05 16:49:38.547","2012-01-05 21:50:59.0","DYDAYTNS","7443","7443",
-
     longForm := "2006-01-02 15:04:05"
 
     // open file
@@ -73,11 +70,13 @@ func processSCADAFile(fileName string, fileNum int, writer *bufio.Writer, startT
             if len(lineComponents) >= 16 {
                 numLines++
 
-                observKey    := strings.Replace(lineComponents[0], "\"", "", -1)
+                // observKey    := strings.Replace(lineComponents[0], "\"", "", -1)
                 observData   := strings.Replace(lineComponents[3], "\"", "", -1)
                 observDataComponents := strings.Split(observData, " ")
-                // devType      := observDataComponents[1]
-                deviceId, devicePhase := "-", "-"
+                deviceType, deviceId, devicePhase := "-", "-", "-"
+                if len(observDataComponents) >= 2 {
+                    deviceType   = observDataComponents[1]
+                }
                 if len(observDataComponents) >= 4 {
                     deviceId     = observDataComponents[2]
                     devicePhase  = observDataComponents[3]
@@ -96,23 +95,23 @@ func processSCADAFile(fileName string, fileNum int, writer *bufio.Writer, startT
                     breakerParsed := breakerParser(observData)
                     if processAnomaly["BKR_OPEN"] && strings.Contains(breakerParsed, "OPEN") {
                         anomalyCount["BKR_OPEN"] += 1
-                        writer.WriteString(fmt.Sprintf("0,BKR_OPEN,%s,%s,AFS,%s,%s,%s,%s\n", deviceId, devicePhase, feederId, observData, value, observTs))
+                        writer.WriteString(fmt.Sprintf("0,BKR_OPEN,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, deviceType, feederId, observData, value, observTs))
                     }
                     if processAnomaly["BKR_CLOSE"] && strings.Contains(breakerParsed, "CLOSE") {
                         anomalyCount["BKR_CLOSE"] += 1
-                        writer.WriteString(fmt.Sprintf("0,BKR_CLOSE,%s,%s,AFS,%s,%s,%s,%s\n", deviceId, devicePhase, feederId, observData, value, observTs))
+                        writer.WriteString(fmt.Sprintf("0,BKR_CLOSE,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, deviceType, feederId, observData, value, observTs))
                     }
                     if processAnomaly["BKR_OPEN"] && strings.Contains(breakerParsed, "OPEN_CLOSE_OPEN") {
                         anomalyCount["BKR_OPEN"] += 1
-                        writer.WriteString(fmt.Sprintf("0,BKR_OPEN,%s,%s,AFS,%s,%s,%s,%s\n", deviceId, devicePhase, feederId, observData, value, observTs))
+                        writer.WriteString(fmt.Sprintf("0,BKR_OPEN,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, deviceType, feederId, observData, value, observTs))
                     }
                     if processAnomaly["BKR_CLOSE"] && strings.Contains(breakerParsed, "CLOSE_OPEN_CLOSE") {
                         anomalyCount["BKR_CLOSE"] += 1
-                        writer.WriteString(fmt.Sprintf("0,BKR_CLOSE,%s,%s,AFS,%s,%s,%s,%s\n", deviceId, devicePhase, feederId, observData, value, observTs))
+                        writer.WriteString(fmt.Sprintf("0,BKR_CLOSE,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, feederId, deviceType, observData, value, observTs))
                     }
                     if processAnomaly["BKR_FAIL_TO_OPR"] && strings.Contains(breakerParsed, "FAIL_TO_OPR") {
                         anomalyCount["BKR_FAIL_TO_OPR"] += 1
-                        writer.WriteString(fmt.Sprintf("0,BKR_FAIL_TO_OPR,%s,%s,AFS,%s,%s,%s,%s\n", deviceId, devicePhase, feederId, observData, value, observTs))
+                        writer.WriteString(fmt.Sprintf("0,BKR_FAIL_TO_OPR,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, deviceType, feederId, observData, value, observTs))
                     }
                 }
 
@@ -120,41 +119,52 @@ func processSCADAFile(fileName string, fileNum int, writer *bufio.Writer, startT
                     !strings.Contains(observData, " ANALOG ") && !strings.Contains(observData, " STATUS ") {
                     devicePhase = devicePhase[0:1]
                     anomalyCount["FAULT_ALARM"] += 1
-                    writer.WriteString(fmt.Sprintf("%s,BKR_FAIL_TO_OPR,%s,%s,AFS,%s,%s,%s,%s\n", observKey, deviceId, devicePhase, feederId, observData, value, observTs))
+                    writer.WriteString(fmt.Sprintf("0,BKR_FAIL_TO_OPR,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, deviceType, feederId, observData, value, observTs))
                 }
 
                 if strings.Contains(observData, "LIM-HIGH") {
                     observDataComponents := strings.Split(observData, " ")
+                    if devicePhase != "FAMP" {
+                        devicePhase = devicePhase[1:2]
+                    } else {
+                        devicePhase = "-"
+                    }
+                    devicePhase = devicePhase[0:1]
                     if len(observDataComponents) >= 6 {
-                        value, _ := strconv.ParseFloat(observDataComponents[5], 64)
-                        if value >= 900 {
+                        value := faultParser(observData)
+                        if value >= 900.0 {
                             anomalyCount["FAULT_CURRENT"] += 1
+                            writer.WriteString(fmt.Sprintf("0,FAULT_CURRENT,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, deviceType, feederId, observData, value, observTs))
                         } else {
                             anomalyCount["TEMP_FAULT_CURRENT"] += 1
+                            writer.WriteString(fmt.Sprintf("0,TEMP_FAULT_CURRENT,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, deviceType, feederId, observData, value, observTs))
                         }
                     }
                 }
 
                 if strings.Contains(observData, "AMP LIM-1 HIGH") {
                     anomalyCount["CURRENT_LIMIT"] += 1
+                    devicePhase = devicePhase[0:1]
+                    writer.WriteString(fmt.Sprintf("0,CURRENT_LIMIT,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, deviceType, feederId, observData, value, observTs))
                 }
 
                 if strings.Contains(observData, " FDRHD ") {
+                    devicePhase = "-"
                     if strings.Contains(observData, "ENGZ ENERGIZED") {
                         anomalyCount["FDRHD_ENERGIZED"] += 1
+                        writer.WriteString(fmt.Sprintf("0,FDRHD_ENERGIZED,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, deviceType, feederId, observData, value, observTs))
                     } else if strings.Contains(observData, "ENGZ DE-ENERGIZED") {
                         anomalyCount["FDRHD_DE_ENERGIZED"] += 1
+                        writer.WriteString(fmt.Sprintf("0,FDRHD_DE_ENERGIZED,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, deviceType, feederId, observData, value, observTs))
                     }
                 }
 
                 if (strings.Contains(observData, "VLT LIM") || strings.Contains(observData, "VT LIM")) &&
                     strings.Contains(observData, "HIGH") {
-                    observDataComponents := strings.Split(observData, " ")
-                    if len(observDataComponents) >= 7 {
-                        value, _ := strconv.ParseFloat(observDataComponents[6], 64)
-                        if value >= 130 && value < 1000 {
-                            anomalyCount["HIGH_VOLTAGE"] += 1
-                        }
+                    value := voltageParser(observData)
+                    if value >= 130.0 && value < 1000.0 {
+                        anomalyCount["HIGH_VOLTAGE"] += 1
+                        writer.WriteString(fmt.Sprintf("0,HIGH_VOLTAGE,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, deviceType, feederId, observData, value, observTs))
                     }
                 }
 
@@ -162,25 +172,42 @@ func processSCADAFile(fileName string, fileNum int, writer *bufio.Writer, startT
                     anomalyCount["INTELI_PH_ALARM"] += 1
                 }
 
-                if strings.Contains(observData, " INTELI ") && strings.Contains(observData, "DSW") {
+                if strings.Contains(observData, " INTELI ") && strings.Contains(observData, "DSW") &&
+                    !strings.Contains(observData, "MAINT") && !strings.Contains(observData, "CTRL") &&
+                    !strings.Contains(observData, "DEFINITION") && !strings.Contains(observData, "STATUS") &&
+                    !strings.Contains(observData, "ABLED") && !strings.Contains(observData, "INHIBITED") {
+                    if len(devicePhase) >=4 {
+                        devicePhase = devicePhase[len(devicePhase)-1:]
+                    } else {
+                        devicePhase = "-"
+                    }
                     if strings.Contains(observData, "OPEN") {
                         anomalyCount["INTELI_OPS_DSW_OPEN"] += 1
+                        writer.WriteString(fmt.Sprintf("0,INTELI_OPS_DSW_OPEN,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, deviceType, feederId, observData, value, observTs))
                     } else if strings.Contains(observData, "CLOSE") {
                         anomalyCount["INTELI_OPS_DSW_CLOSE"] += 1
+                        writer.WriteString(fmt.Sprintf("0,INTELI_OPS_DSW_CLOSE,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, deviceType, feederId, observData, value, observTs))
                     }
                 }
 
                 if strings.Contains(observData, " FDRHD ") && strings.Contains(observData, " REGU ") &&
-                    strings.Contains(observData, "BLOCK") {
+                    strings.Contains(observData, "BLOCK") &&
+                    !strings.Contains(observData, " NORMAL") && !strings.Contains(observData, " STATUS ") &&
+                    !strings.Contains(observData, " CTRL ") {
+                    devicePhase = "-"
                     anomalyCount["REGULATOR_BLOCK"] += 1
+                    writer.WriteString(fmt.Sprintf("0,REGULATOR_BLOCK,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, deviceType, feederId, observData, value, observTs))
                 }
                 
-                if strings.Contains(observData, " RELAY ") && !strings.Contains(observData, "NORMAL") &&
-                    !strings.Contains(observData, "STATUS") {
+                if strings.Contains(observData, " RELAY ") &&
+                    !strings.Contains(observData, "NORMAL") && !strings.Contains(observData, "STATUS") {
                     if strings.Contains(observData, "ALARM") {
                         anomalyCount["RELAY_ALARM"] += 1
-                    } else if strings.Contains(observData, "TRIP") {
+                        writer.WriteString(fmt.Sprintf("0,RELAY_ALARM,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, deviceType, feederId, observData, value, observTs))
+                    }
+                    if strings.Contains(observData, "TRIP") {
                         anomalyCount["RELAY_TRIP"] += 1
+                        writer.WriteString(fmt.Sprintf("0,%s,RELAY_TRIP,%s,%s,%s,%s,%s,%s,%s\n", deviceId, devicePhase, deviceType, feederId, observData, value, observTs))
                     }
                 }
 
@@ -211,6 +238,17 @@ func processSCADAFile(fileName string, fileNum int, writer *bufio.Writer, startT
     }
 }
 
+func faultParser(observData string) float64 {
+    observDataComponents := strings.Split(observData, " ")
+    if len(observDataComponents) < 6 {
+        return 0.0
+    } else {
+        value, _ := strconv.ParseFloat(observDataComponents[5], 64)
+        return value
+    }
+}
+
+
 func breakerParser(observData string) string {
     observDataComponents := strings.Split(observData, " ")
     if len(observDataComponents) < 5 {
@@ -219,5 +257,14 @@ func breakerParser(observData string) string {
         parsed := observDataComponents[4]
         return strings.Replace( strings.Replace(parsed, "D", "", -1), "=", "_", -1)
     }
+}
 
+func voltageParser(observData string) float64 {
+    observDataComponents := strings.Split(observData, " ")
+    if len(observDataComponents) < 7 {
+        return 0.0
+    } else {
+        value, _ := strconv.ParseFloat(observDataComponents[6], 64)
+        return value
+    }
 }
