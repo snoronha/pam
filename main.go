@@ -8,9 +8,11 @@ import (
     "anomaly/lib"
 )
 
+
 func main() {
     argsWithProg := os.Args
-    if len(argsWithProg) >= 4 {
+	
+    if len(argsWithProg) >= 5 {
         var startFileNumber, endFileNumber int
         _, _ = startFileNumber, endFileNumber
         var err error
@@ -28,10 +30,19 @@ func main() {
         } else {
             monthlyOrBulk = "monthly"
         }
+
+		awsOrLocal := ""
+        var isAWSRegexp = regexp.MustCompile(`^a.*`)
+        isAWS := isAWSRegexp.MatchString(argsWithProg[4])
+        if isAWS {
+            awsOrLocal = "aws"
+        } else {
+            awsOrLocal = "local"
+        }
         // lib.ProcessSCADA(startFileNumber, endFileNumber)
-        lib.ProcessEDNA(startFileNumber, endFileNumber, monthlyOrBulk)
+        lib.ProcessEDNA(startFileNumber, endFileNumber, monthlyOrBulk, awsOrLocal)
     } else {
-        fmt.Println("Usage:   anomaly <startFileNumber> <endFileNumber> <monthlyOrBulk>\nExample: anomaly 0 -1 monthly")
+        fmt.Println("Usage:   anomaly <startFileNumber> <endFileNumber> <monthlyOrBulk> <awsOrLocal>\nExample: anomaly 0 -1 monthly aws")
     }
 
     // lib.CompareAllAnomsWithEDNAAnoms()
