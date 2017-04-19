@@ -16,16 +16,32 @@ func GetAWSService(region string) *s3.S3 {
 }
 
 func GetAWSObjectNames(svc *s3.S3, bucket string, maxKeys int64, prefix string) []string {
-	objects := make([]string, 0)
-	params  := &s3.ListObjectsInput{ Bucket: aws.String(bucket), MaxKeys: aws.Int64(maxKeys), Prefix: aws.String(prefix) }
-	resp, err := svc.ListObjects(params)
-	if err != nil {
-		fmt.Println(err.Error())
-		return objects
+	objects    := make([]string, 0)
+	var numObjects int64 = 0
+	done       := false
+	marker     := ""
+	fmt.Printf("Computing total number of AWS %s objects ...\n", prefix)	
+	for numObjects <= maxKeys && !done {
+		params  := &s3.ListObjectsInput{ Bucket: aws.String(bucket), MaxKeys: aws.Int64(1000), Prefix: aws.String(prefix), Marker: aws.String(marker) }
+		resp, err := svc.ListObjects(params)
+		if err != nil {
+			fmt.Println(err.Error())
+			return objects
+		}
+		for _, key := range resp.Contents {
+			if numObjects >= maxKeys {
+				done = true
+				continue
+			}
+			marker  = *key.Key
+			objects = append(objects, marker)
+			numObjects++
+		}
+		if !aws.BoolValue(resp.IsTruncated) {
+			done = true
+		}
 	}
-	for _, key := range resp.Contents {
-		objects = append(objects, *key.Key)
-	}
+	fmt.Printf("Total Number of AWS %s objects is %d\n", prefix, len(objects))
 	return objects
 }
 

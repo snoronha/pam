@@ -61,7 +61,7 @@ func ProcessEDNA(startFileNumber int, endFileNumber int, monthlyOrBulk string, a
 					filePath := monthlyDir + "/" + f.Name()
 					if strings.Contains(f.Name(), ".csv") {
 						if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
-							processEDNAFile(filePath, fileNum, writer, startTime, ednaAnomalyCount, processEdnaAnomaly)
+							processEDNAFile(filePath, filePath, fileNum, writer, startTime, ednaAnomalyCount, processEdnaAnomaly)
 							writer.Flush()
 						}
 						fileNum++
@@ -72,12 +72,12 @@ func ProcessEDNA(startFileNumber int, endFileNumber int, monthlyOrBulk string, a
 			svc       := GetAWSService("us-west-2")
 			bucket    := "pam-monthly-anomalies"
 			objects   := GetAWSObjectNames(svc, bucket, MAX_EDNA_KEYS, "EDNA")
-			ofileName := "current_file.csv"
+			ofileName := "current_file_" + strconv.Itoa(startFileNumber) + "_" + strconv.Itoa(endFileNumber) + ".csv"
 			fmt.Printf("%d object names retrieved ...\n", len(objects))
 			for _, fileName := range objects {
 				if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
 					GetAWSFile(svc, bucket, fileName, ofileName)
-					processEDNAFile(ofileName, fileNum, writer, startTime, ednaAnomalyCount, processEdnaAnomaly)
+					processEDNAFile(ofileName, fileName, fileNum, writer, startTime, ednaAnomalyCount, processEdnaAnomaly)
 					writer.Flush()
 				}
 				fileNum++
@@ -91,7 +91,7 @@ func ProcessEDNA(startFileNumber int, endFileNumber int, monthlyOrBulk string, a
             filePath := dir + "/" + f.Name()
             if strings.Contains(f.Name(), ".csv") {
                 if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
-                    processEDNAFile(filePath, fileNum, writer, startTime, ednaAnomalyCount, processEdnaAnomaly)
+                    processEDNAFile(filePath, filePath, fileNum, writer, startTime, ednaAnomalyCount, processEdnaAnomaly)
                     writer.Flush()
                 }
                 fileNum++
@@ -100,7 +100,9 @@ func ProcessEDNA(startFileNumber int, endFileNumber int, monthlyOrBulk string, a
     }
 }
 
-func processEDNAFile(fileName string, fileNum int, writer *bufio.Writer, startTime time.Time, anomalyCount map[string]int, processAnomaly map[string]bool) {
+func processEDNAFile(fileName string, fileTag string, fileNum int, writer *bufio.Writer,
+	startTime time.Time, anomalyCount map[string]int, processAnomaly map[string]bool) {
+
     longForm := "1/2/2006 3:04:05 PM"
 
     // create Windows for moving windows
@@ -314,7 +316,7 @@ func processEDNAFile(fileName string, fileNum int, writer *bufio.Writer, startTi
             }
         }
         elapsed := time.Since(startTime)
-        fmt.Printf("{id: %d, filePath: \"%s\", numLines: %d, elapsed: %s%s}\n", fileNum, fileName, numLines, elapsed, anomalyStr)
+        fmt.Printf("{id: %d, filePath: \"%s\", numLines: %d, elapsed: %s%s}\n", fileNum, fileTag, numLines, elapsed, anomalyStr)
         
         // check for errors
         if err = scanner.Err(); err != nil {
