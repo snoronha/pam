@@ -82,7 +82,6 @@ func ProcessEDNA(startFileNumber int, endFileNumber int, monthlyOrBulk string, a
 				}
 				fileNum++
 			}
-
 		}
     } else {
         dir       := "/Volumes/auto-grid-pam/DISK1/bulk_data/edna/response"

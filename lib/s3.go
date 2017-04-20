@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -16,31 +17,31 @@ func GetAWSService(region string) *s3.S3 {
 }
 
 func GetAWSObjectNames(svc *s3.S3, bucket string, maxKeys int64, prefix string) []string {
+	var objectsMap map[string]int = make(map[string]int)
+	_ = objectsMap
 	objects    := make([]string, 0)
-	var numObjects int64 = 0
 	done       := false
 	marker     := ""
 	fmt.Printf("Computing total number of AWS %s objects ...\n", prefix)	
-	for numObjects <= maxKeys && !done {
-		params  := &s3.ListObjectsInput{ Bucket: aws.String(bucket), MaxKeys: aws.Int64(1000), Prefix: aws.String(prefix), Marker: aws.String(marker) }
+	for !done {
+		params    := &s3.ListObjectsInput{ Bucket: aws.String(bucket), MaxKeys: aws.Int64(1000), Prefix: aws.String(prefix), Marker: aws.String(marker) }
 		resp, err := svc.ListObjects(params)
 		if err != nil {
 			fmt.Println(err.Error())
-			return objects
+			done = true
 		}
 		for _, key := range resp.Contents {
-			if numObjects >= maxKeys {
-				done = true
-				continue
-			}
 			marker  = *key.Key
-			objects = append(objects, marker)
-			numObjects++
+			objectsMap[marker] = 0
 		}
 		if !aws.BoolValue(resp.IsTruncated) {
 			done = true
 		}
 	}
+	for obj := range objectsMap {
+		objects = append(objects, obj)
+	}
+	sort.Strings(objects)
 	fmt.Printf("Total Number of AWS %s objects is %d\n", prefix, len(objects))
 	return objects
 }
