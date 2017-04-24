@@ -80,7 +80,7 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
         for _, f  := range files {
             filePath := dir + "/" + f.Name()
             if strings.Contains(f.Name(), ".csv") {
-                if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) && strings.Contains(f.Name(), "ami_100231.csv") {
+                if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "ami_100231.csv") {
                     processAMIFile(filePath, filePath, fileNum, writer, startTime, amiAnomalyCount, customerMap)
                     writer.Flush()
                 }
