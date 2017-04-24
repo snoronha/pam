@@ -40,7 +40,8 @@ func main() {
             awsOrLocal = "local"
         }
         // lib.ProcessSCADA(startFileNumber, endFileNumber)
-        lib.ProcessEDNA(startFileNumber, endFileNumber, monthlyOrBulk, awsOrLocal)
+        // lib.ProcessEDNA(startFileNumber, endFileNumber, monthlyOrBulk, awsOrLocal)
+        lib.ProcessAMI(startFileNumber, endFileNumber, monthlyOrBulk, awsOrLocal)
     } else {
         fmt.Println("Usage:   anomaly <startFileNumber> <endFileNumber> <monthlyOrBulk> <awsOrLocal>\nExample: anomaly 0 -1 monthly aws")
     }
