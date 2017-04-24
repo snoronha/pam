@@ -5,7 +5,6 @@ import (
     "fmt"
     "io/ioutil"
     "log"
-    // "math"
     "os"
     "regexp"
     "sort"
@@ -19,15 +18,17 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
     amiAnomalyCount   := map[string]int{ "LG_PD_10": 0, "LG_PD_10_V2": 0, }
 
     // Read customer data from csv dump
-    customerMap := readFeederMetadata("/Users/sanjaynoronha/Desktop/feeder_metadata.csv")
+    var customerMap map[string]int64 
 
     // output file writer - handles AWS/local
     var writer *bufio.Writer
 	var odir string
 	if awsOrLocal == "local" {
 		odir   = "/Users/sanjaynoronha/Desktop/"
+		customerMap = readFeederMetadata("/Users/sanjaynoronha/Desktop/feeder_metadata.csv")
 	} else {
 		odir   = "/home/ubuntu/go/src/anomaly/"
+		customerMap = readFeederMetadata("//home/ubuntu/go/src/anomaly/feeder_metadata.csv")
 	}
 
     // create output file writer
@@ -52,7 +53,7 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
 					filePath := monthlyDir + "/" + f.Name()
 					if strings.Contains(f.Name(), ".csv") {
 						if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
-							processAMIFile(filePath, filePath, fileNum, writer, startTime, amiAnomalyCount, customerMap)
+							processAMIFile(filePath, filePath, fileNum, writer, startTime, amiAnomalyCount, customerMap, monthlyOrBulk)
 							writer.Flush()
 						}
 						fileNum++
@@ -68,7 +69,7 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
 			for _, fileName := range objects {
 				if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
 					GetAWSFile(svc, bucket, fileName, ofileName)
-					processAMIFile(ofileName, fileName, fileNum, writer, startTime, amiAnomalyCount, customerMap)
+					processAMIFile(ofileName, fileName, fileNum, writer, startTime, amiAnomalyCount, customerMap, monthlyOrBulk)
 					writer.Flush()
 				}
 				fileNum++
@@ -81,7 +82,7 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
             filePath := dir + "/" + f.Name()
             if strings.Contains(f.Name(), ".csv") {
                 if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "ami_100231.csv") {
-                    processAMIFile(filePath, filePath, fileNum, writer, startTime, amiAnomalyCount, customerMap)
+                    processAMIFile(filePath, filePath, fileNum, writer, startTime, amiAnomalyCount, customerMap, monthlyOrBulk)
                     writer.Flush()
                 }
                 fileNum++
@@ -92,10 +93,10 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
 
 
 func processAMIFile(fileName string, fileTag string, fileNum int, writer *bufio.Writer,
-	startTime time.Time, anomalyCount map[string]int, customerMap map[string]int64) {
-
-    longForm := "2006-01-02 15:04:05"
-
+	startTime time.Time, anomalyCount map[string]int, customerMap map[string]int64, monthlyOrBulk string) {
+	longForm := "2006-01-02 15:04:05"
+	monthlyLongForm := "1/2/2006 3:04:05 PM"
+	
     // open file
     if file, err := os.Open(fileName); err == nil {
         defer file.Close()
@@ -106,8 +107,8 @@ func processAMIFile(fileName string, fileTag string, fileNum int, writer *bufio.
         numAmiLines := 0
         var amiObjects []AMI
         hashMap     := make(map[int64]map[string][]AMI)
-        
-        mtrTmstmpRegexp, _   := regexp.Compile(`([0-9]{4})-([0-9]{2})-([0-9]{2}) ([0-9]{2}):([0-9]{2}):([0-9]{2})`) // 2014-08-04 12:49:39-04
+
+		mtrTmstmpRegexp, _   := regexp.Compile(`([0-9]{4})-([0-9]{2})-([0-9]{2}) ([0-9]{2}):([0-9]{2}):([0-9]{2})`) // 2014-08-04 12:49:39-04
 
         // create a new scanner and read the file line by line
         scanner  := bufio.NewScanner(file)
@@ -119,34 +120,40 @@ func processAMIFile(fileName string, fileTag string, fileNum int, writer *bufio.
 
                 ami              := new(AMI)
 
-                ami.SubstnName    = lineComponents[0]
-                ami.FdrNum        = lineComponents[1]
-                ami.PremNum       = lineComponents[2]
-                ami.PhasType      = lineComponents[3]
-                ami.CisDvcCoor    = lineComponents[4]
-                ami.AmiDvcName    = lineComponents[5]
-                ami.MtrEvntId     = lineComponents[6]
-                ami.MtrEvntTmstmp = lineComponents[7]
-                ami.EvntTxt       = strings.Join(lineComponents[10:len(lineComponents)], ",")
-                
+                ami.SubstnName    = strings.Replace(lineComponents[0], "\"", "", -1)
+                ami.FdrNum        = strings.Replace(lineComponents[1], "\"", "", -1)
+                ami.PremNum       = strings.Replace(lineComponents[2], "\"", "", -1)
+                ami.PhasType      = strings.Replace(lineComponents[3], "\"", "", -1)
+                ami.CisDvcCoor    = strings.Replace(lineComponents[4], "\"", "", -1)
+                ami.AmiDvcName    = strings.Replace(lineComponents[5], "\"", "", -1)
+                ami.MtrEvntId     = strings.Replace(lineComponents[6], "\"", "", -1)
+                ami.MtrEvntTmstmp = strings.Replace(lineComponents[7], "\"", "", -1)
+                ami.EvntTxt       = strings.Replace(strings.Join(lineComponents[10:len(lineComponents)], ","), "\"", "", -1)
+
                 modTmstmp := ""
                 if strings.HasPrefix(ami.AmiDvcName, "G") &&
                     (strings.Contains(ami.MtrEvntId, "12007") || strings.Contains(ami.MtrEvntId, "12024")) {
                     numAmiLines++
-                    matches := mtrTmstmpRegexp.FindStringSubmatch(ami.MtrEvntTmstmp)
-                    if len(matches) > 0 {
-                        modTmstmp = matches[1] + "-" + matches[2] + "-" + matches[3] + " " + matches[4] + ":" + matches[5] + ":00"
-                        evntTs, _ := time.Parse(longForm, modTmstmp)
-                        ami.MtrEvntEpoch = evntTs.Unix()
-                        amiObjects  = append(amiObjects, *ami)
-                        if _, ok := hashMap[ami.MtrEvntEpoch]; !ok {
-                            hashMap[ami.MtrEvntEpoch] = make(map[string][]AMI)
-                        }
-                        if _, ok := hashMap[ami.MtrEvntEpoch][ami.AmiDvcName]; !ok {
-                            hashMap[ami.MtrEvntEpoch][ami.AmiDvcName] = make([]AMI, 0)
-                        }
-                        hashMap[ami.MtrEvntEpoch][ami.AmiDvcName] = append(hashMap[ami.MtrEvntEpoch][ami.AmiDvcName], *ami)
-                    }
+					if monthlyOrBulk == "bulk" {
+						matches := mtrTmstmpRegexp.FindStringSubmatch(ami.MtrEvntTmstmp)
+						if len(matches) > 0 {
+							modTmstmp = matches[1] + "-" + matches[2] + "-" + matches[3] + " " + matches[4] + ":" + matches[5] + ":00"
+							evntTs, _ := time.Parse(longForm, modTmstmp)
+							ami.MtrEvntEpoch = evntTs.Unix()
+						}
+					} else {
+						evntTs, _ := time.Parse(monthlyLongForm, ami.MtrEvntTmstmp)
+						ami.MtrEvntEpoch = evntTs.Unix()						
+					}
+					amiObjects  = append(amiObjects, *ami)
+					if _, ok := hashMap[ami.MtrEvntEpoch]; !ok {
+						hashMap[ami.MtrEvntEpoch] = make(map[string][]AMI)
+					}
+					if _, ok := hashMap[ami.MtrEvntEpoch][ami.AmiDvcName]; !ok {
+						hashMap[ami.MtrEvntEpoch][ami.AmiDvcName] = make([]AMI, 0)
+					}
+					hashMap[ami.MtrEvntEpoch][ami.AmiDvcName] = append(hashMap[ami.MtrEvntEpoch][ami.AmiDvcName], *ami)
+
                 }
             }
         }
