@@ -16,16 +16,16 @@ import (
 func ProcessEDNA(startFileNumber int, endFileNumber int, monthlyOrBulk string, awsOrLocal string) {
 	var MAX_EDNA_KEYS int64 = 100000
     ednaAnomalyCount := map[string]int{
-        "AFS_ALARM_ALARM": 0, "AFS_GROUND_ALARM": 0, "AFS_I_FAULT_FULL": 0, "AFS_I_FAULT_TEMP": 0,
-        "FCI_FAULT_ALARM": 0, "FCI_I_FAULT_FULL": 0, "FCI_I_FAULT_TEMP": 0,
+        "AFS_ALARM_ALARM": 0, "AFS_GROUND_ALARM": 0, "AFS_I_FAULT_FULL": 0, "AFS_I_FAULT_TEMP": 0, "AFS_I_FAULT_NEW": 0,
+        "FCI_FAULT_ALARM": 0, "FCI_I_FAULT_FULL": 0, "FCI_I_FAULT_TEMP": 0, "FCI_I_FAULT_NEW":  0,
         "ZERO_CURRENT_V3": 0, "ZERO_CURRENT_V4":  0,
         "ZERO_POWER_V3":   0, "ZERO_POWER_V4":    0,
         "ZERO_VOLTAGE_V3": 0, "ZERO_VOLTAGE_V4":  0,
         "PF_SPIKES_V3":    0, "THD_SPIKES_V3":    0,
     }
     processEdnaAnomaly := map[string]bool{
-        "AFS_ALARM_ALARM": true,  "AFS_GROUND_ALARM": true, "AFS_I_FAULT_FULL": true, "AFS_I_FAULT_TEMP": true,
-        "FCI_FAULT_ALARM": true,  "FCI_I_FAULT_FULL": true, "FCI_I_FAULT_TEMP": true,
+        "AFS_ALARM_ALARM": true,  "AFS_GROUND_ALARM": true, "AFS_I_FAULT_FULL": true, "AFS_I_FAULT_TEMP": true, "AFS_I_FAULT_NEW": true,
+        "FCI_FAULT_ALARM": true,  "FCI_I_FAULT_FULL": true, "FCI_I_FAULT_TEMP": true, "FCI_I_FAULT_NEW":  true,
         "ZERO_CURRENT_V3": true,  "ZERO_CURRENT_V4":  true,
         "ZERO_POWER_V3":   true,  "ZERO_POWER_V4":    true,
         "ZERO_VOLTAGE_V3": true,  "ZERO_VOLTAGE_V4":  true,
@@ -159,12 +159,15 @@ func processEDNAFile(fileName string, fileTag string, fileNum int, writer *bufio
                         if value >= 600 {
                             if value >= 900 {
                                 anomalyCount["AFS_I_FAULT_FULL"]++
-                                // ,Anomaly,DeviceId,DevicePh,DeviceType,Feeder,Signal,Value,Time
                                 writer.WriteString(fmt.Sprintf("0,AFS_I_FAULT_FULL,%s,%s,AFS,%s,%s,%d,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                             } else {
                                 anomalyCount["AFS_I_FAULT_TEMP"]++
                                 writer.WriteString(fmt.Sprintf("0,AFS_I_FAULT_TEMP,%s,%s,AFS,%s,%s,%d,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                             }
+                        }
+                        if value >= 800 {
+                            anomalyCount["AFS_I_FAULT_NEW"]++
+                            writer.WriteString(fmt.Sprintf("0,AFS_I_FAULT_NEW,%s,%s,AFS,%s,%s,%d,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                         }
                     }
                 }
@@ -186,6 +189,10 @@ func processEDNAFile(fileName string, fileTag string, fileNum int, writer *bufio
                                 anomalyCount["FCI_I_FAULT_TEMP"]++;
                                 writer.WriteString(fmt.Sprintf("0,FCI_I_FAULT_TEMP,%s,%s,FCI,%s,%s,%d,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                             }
+                        }
+                        if value >= 800 {
+                            anomalyCount["FCI_I_FAULT_NEW"]++
+                            writer.WriteString(fmt.Sprintf("0,FCI_I_FAULT_NEW,%s,%s,FCI,%s,%s,%d,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                         }
                     }
                 }
