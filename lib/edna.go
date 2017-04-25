@@ -105,8 +105,7 @@ func processEDNAFile(fileName string, fileTag string, fileNum int, writer *bufio
     longForm := "1/2/2006 3:04:05 PM"
 
     // create Windows for moving windows
-    var zeroCurrentWindows map[string]Window
-    zeroCurrentWindows = make(map[string]Window)
+    var zeroCurrentWindows map[string]Window = make(map[string]Window)
     var zeroPowerWindows map[string]Window
     zeroPowerWindows = make(map[string]Window)
     var zeroVoltageWindows map[string]Window
@@ -133,7 +132,6 @@ func processEDNAFile(fileName string, fileTag string, fileNum int, writer *bufio
             if len(lineComponents) >= 5 {
                 numLines++
 
-                // Fail good data as early as possible
                 extendedId  := strings.Replace(lineComponents[0], "\"", "", -1)
                 ts, _       := time.Parse(longForm, strings.Replace(lineComponents[1], "\"", "", -1))
                 devicePhaseMatches := phaseRegexp.FindStringSubmatch(extendedId)
@@ -150,12 +148,14 @@ func processEDNAFile(fileName string, fileTag string, fileNum int, writer *bufio
                 if strings.Contains(extendedId, ".AFS.") {
                     // handle potential AFS anomalies
                     deviceId := strings.Split(extendedId, ".")[3]
+                    value, _ := strconv.Atoi(strings.Replace(lineComponents[2], "\"", "", -1))
                     if processAnomaly["AFS_ALARM_ALARM"] && strings.Contains(extendedId, ".ALARM") && strings.Contains(lineComponents[3], "ALARM") {
                         anomalyCount["AFS_ALARM_ALARM"] += 1
+                        writer.WriteString(fmt.Sprintf("0,AFS_ALARM_ALARM,%s,%s,AFS,%s,%s,%d,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                     } else if processAnomaly["AFS_GROUND_ALARM"] && strings.Contains(extendedId, ".GROUND") && strings.Contains(lineComponents[3], "ALARM") {
                         anomalyCount["AFS_GROUND_ALARM"]++
+                        writer.WriteString(fmt.Sprintf("0,AFS_GROUND_ALARM,%s,%s,AFS,%s,%s,%d,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                     } else if (processAnomaly["AFS_I_FAULT_FULL"] || processAnomaly["AFS_I_FAULT_TEMP"]) && strings.Contains(extendedId, ".I_FAULT") {
-                        value, _ := strconv.Atoi(strings.Replace(lineComponents[2], "\"", "", -1))
                         if value >= 600 {
                             if value >= 900 {
                                 anomalyCount["AFS_I_FAULT_FULL"]++
@@ -171,10 +171,12 @@ func processEDNAFile(fileName string, fileTag string, fileNum int, writer *bufio
                 
                 if strings.Contains(extendedId, ".FCI.") {
                     // handle potential FCI anomalies
+                    value, _ := strconv.Atoi(strings.Replace(lineComponents[2], "\"", "", -1))
+                    deviceId := strings.Split(extendedId, ".")[3]
                     if processAnomaly["FCI_FAULT_ALARM"] && strings.Contains(extendedId, ".FAULT") && !strings.Contains(lineComponents[3], "NORMAL") {
                         anomalyCount["FCI_FAULT_ALARM"]++
+                        writer.WriteString(fmt.Sprintf("0,FCI_FAULT_ALARM,%s,%s,FCI,%s,%s,%d,%s\n", deviceId, devicePhase, feederId, extendedId, value, ts))
                     } else if (processAnomaly["FCI_I_FAULT_FULL"] || processAnomaly["FCI_I_FAULT_TEMP"]) && strings.Contains(extendedId, ".I_FAULT") {
-                        value, _ := strconv.Atoi(strings.Replace(lineComponents[2], "\"", "", -1))
                         if value >= 600 {
                             deviceId := strings.Split(extendedId, ".")[3]
                             if value >= 900 {
@@ -214,9 +216,6 @@ func processEDNAFile(fileName string, fileTag string, fileNum int, writer *bufio
 
                         mean := zeroCurrentWindow.Mean()
                         _ = mean
-                        if numLines % 100 == 0 {
-                            // fmt.Printf("%d: [%d, %d] value: %.2f mean: %.3f\n", numLines, zeroCurrentWindow.StartPointer, zeroCurrentWindow.EndPointer, value, mean)
-                        }
                     }
                     zeroCurrentWindows[extendedId] = zeroCurrentWindow
                 }
