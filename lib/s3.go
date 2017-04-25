@@ -11,7 +11,10 @@ import (
 )
 
 func GetAWSService(region string) *s3.S3 {
-	sess := session.Must(session.NewSession(&aws.Config{Region: aws.String(region)}))
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+        Config: aws.Config{Region: aws.String("us-west-2")},
+        Profile: "fpl_user",
+    }))
 	svc  := s3.New(sess)
 	return svc
 }
