@@ -167,3 +167,120 @@ func CompareAllAnomsWithEDNAAnoms() {
 
 
 }
+
+// e.g. fileName = "/Users/<username>/edna_monthly", extension = ".csv"
+func SortMergeAnomalyFile(newFilePath string, newExtension string, oldFilePath string, oldExtension string) {
+    var anomObjects []Anomaly
+    numLines := 0
+    newLongForm := "2006-01-02 15:04:05 +0000 UTC"
+    newFileName := newFilePath + newExtension
+    oldLongForm := "2006-01-02 15:04:05+00:00"
+    oldFileName := oldFilePath + oldExtension
+
+    // Read, parse new file
+    if newFile, err := os.Open(newFileName); err == nil {
+        // make sure it gets closed
+        defer newFile.Close()
+        scanner  := bufio.NewScanner(newFile)
+        for scanner.Scan() {
+            line := scanner.Text()
+            lineComponents := strings.Split(line, ",")
+            if len(lineComponents) >= 5 {
+                anom            := new(Anomaly)
+
+                // 0,FCI_FAULT_ALARM,673113B,B,FCI,806731,IVES.806731.FCI.673113B.FAULT.B_PH,1,2013-12-05 15:41:26 +0000 UTC
+                anom.Id         = lineComponents[0]
+                anom.Anomaly    = lineComponents[1]
+                anom.DeviceId   = lineComponents[2]
+                anom.DevicePh   = lineComponents[3]
+                anom.DeviceType = lineComponents[4]
+                anom.Feeder     = lineComponents[5]
+                anom.Signal     = lineComponents[6]
+                anom.Value      = lineComponents[7]
+                anom.Time       = lineComponents[8]
+
+                evntTs, _      := time.Parse(newLongForm, anom.Time)
+                anom.EpochTime  = evntTs.Unix()
+                anomObjects     = append(anomObjects, *anom)
+                if numLines % 1000000 == 0 {
+                    fmt.Printf("%d\tnew %s epoch: %d\n", numLines, anom.Time, anom.EpochTime)
+                }
+                numLines++
+            }
+        }
+    } else {
+        log.Fatal(err)
+    }
+    fmt.Printf("NumLines: %d\n", numLines)
+
+    // Read, parse old file
+    if oldFile, err := os.Open(oldFileName); err == nil {
+        // make sure it gets closed
+        defer oldFile.Close()
+        scanner  := bufio.NewScanner(oldFile)
+        for scanner.Scan() {
+            line := scanner.Text()
+            lineComponents := strings.Split(line, ",")
+            if len(lineComponents) >= 5 {
+                anom            := new(Anomaly)
+
+                anom.Id         = lineComponents[0]
+                anom.Anomaly    = lineComponents[1]
+                anom.DeviceId   = lineComponents[2]
+                anom.DevicePh   = lineComponents[3]
+                anom.DeviceType = lineComponents[4]
+                anom.Feeder     = lineComponents[5]
+                anom.Signal     = lineComponents[6]
+                anom.Value      = "0"
+                anom.Time       = lineComponents[7]
+
+                evntTs, _      := time.Parse(oldLongForm, anom.Time)
+                anom.EpochTime  = evntTs.Unix()
+                anom.Time       = fmt.Sprintf("%s", evntTs)
+                anomObjects     = append(anomObjects, *anom)
+
+                if numLines % 100000 == 0 {
+                    fmt.Printf("%d\told %s epoch: %d\n", numLines, anom.Time, anom.EpochTime)
+                }
+                numLines++
+            }
+        }
+    } else {
+        log.Fatal(err)
+    }
+
+    sort.Slice(anomObjects, func(i, j int) bool {
+        return anomObjects[i].EpochTime < anomObjects[j].EpochTime
+    })
+    fmt.Printf("Sorting done!\n")
+
+    // Write out sorted, merged files
+    oFileName := newFilePath + "_merged" + newExtension
+    var writer *bufio.Writer
+    if ofile, err := os.Create(oFileName); err == nil {
+        defer ofile.Close()
+        writer = bufio.NewWriter(ofile)
+    } else {
+        log.Fatal(err)
+    }
+    line := ""
+    for _, anom := range anomObjects {
+        line = anom.Id + "," + anom.Anomaly + "," + anom.DeviceId + "," + anom.DevicePh + "," + anom.DeviceType + "," + anom.Feeder + "," +
+            anom.Signal + "," + anom.Value + "," + anom.Time
+        writer.WriteString(fmt.Sprintf("%s\n", line))
+    }
+    writer.Flush()
+}
+
+type Anomaly struct {
+    Id         string
+    Anomaly    string
+    DeviceId   string
+    DevicePh   string
+    DeviceType string
+    Feeder     string
+    Signal     string
+    Value      string
+    Time       string
+    EpochTime  int64
+}
