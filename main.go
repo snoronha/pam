@@ -23,6 +23,7 @@ func main() {
             panic(err)
         }
         monthlyOrBulk := ""
+        _ = monthlyOrBulk
         var isBulkRegexp = regexp.MustCompile(`^b.*`)
         isBulk := isBulkRegexp.MatchString(argsWithProg[3])
         if isBulk {
@@ -32,6 +33,7 @@ func main() {
         }
 
 		awsOrLocal := ""
+        _ = awsOrLocal
         var isAWSRegexp = regexp.MustCompile(`^a.*`)
         isAWS := isAWSRegexp.MatchString(argsWithProg[4])
         if isAWS {
@@ -47,6 +49,7 @@ func main() {
     }
 
     // lib.CompareAllAnomsWithEDNAAnoms()
+    // lib.SortMergeAnomalyFile("/Users/sanjaynoronha/Desktop/edna_bulk_042617", ".csv", "/Users/sanjaynoronha/Desktop/all_anoms_pf_thd_feb2015", ".csv")
     
 }
 
