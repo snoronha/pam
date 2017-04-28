@@ -25,10 +25,10 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
 	var odir string
 	if awsOrLocal == "local" {
 		odir   = "/Users/sanjaynoronha/Desktop/"
-		customerMap = readFeederMetadata("/Users/sanjaynoronha/Desktop/feeder_metadata.csv")
+		customerMap = readFeederMetadata("/Users/sanjaynoronha/go/src/anomaly/data/feeder_metadata.csv")
 	} else {
 		odir   = "/home/ubuntu/go/src/anomaly/"
-		customerMap = readFeederMetadata("//home/ubuntu/go/src/anomaly/feeder_metadata.csv")
+		customerMap = readFeederMetadata("//home/ubuntu/go/src/anomaly/data/feeder_metadata.csv")
 	}
 
     // create output file writer
