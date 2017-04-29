@@ -14,7 +14,6 @@ func main() {
 	
     if len(argsWithProg) >= 5 {
         var startFileNumber, endFileNumber int
-        _, _ = startFileNumber, endFileNumber
         var err error
         if startFileNumber, err = strconv.Atoi(argsWithProg[1]); err != nil {
             panic(err)
@@ -23,7 +22,6 @@ func main() {
             panic(err)
         }
         monthlyOrBulk := ""
-        _ = monthlyOrBulk
         var isBulkRegexp = regexp.MustCompile(`^b.*`)
         isBulk := isBulkRegexp.MatchString(argsWithProg[3])
         if isBulk {
@@ -33,7 +31,6 @@ func main() {
         }
 
 		awsOrLocal := ""
-        _ = awsOrLocal
         var isAWSRegexp = regexp.MustCompile(`^a.*`)
         isAWS := isAWSRegexp.MatchString(argsWithProg[4])
         if isAWS {
