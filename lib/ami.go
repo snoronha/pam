@@ -285,4 +285,3 @@ type AMI struct {
 
     MtrEvntEpoch  int64
 }
-        

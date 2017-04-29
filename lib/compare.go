@@ -189,19 +189,19 @@ func SortMergeAnomalyFile(newFilePath string, newExtension string, oldFilePath s
                 anom            := new(Anomaly)
 
                 // 0,FCI_FAULT_ALARM,673113B,B,FCI,806731,IVES.806731.FCI.673113B.FAULT.B_PH,1,2013-12-05 15:41:26 +0000 UTC
-                anom.Id         = lineComponents[0]
-                anom.Anomaly    = lineComponents[1]
-                anom.DeviceId   = lineComponents[2]
-                anom.DevicePh   = lineComponents[3]
-                anom.DeviceType = lineComponents[4]
-                anom.Feeder     = lineComponents[5]
-                anom.Signal     = lineComponents[6]
-                anom.Value      = lineComponents[7]
-                anom.Time       = lineComponents[8]
+                anom.Id          = lineComponents[0]
+                anom.Anomaly     = lineComponents[1]
+                anom.DeviceId    = lineComponents[2]
+                anom.DevicePhase = lineComponents[3]
+                anom.DeviceType  = lineComponents[4]
+                anom.FeederId    = lineComponents[5]
+                anom.Signal      = lineComponents[6]
+                anom.Value       = lineComponents[7]
+                anom.Time        = lineComponents[8]
 
-                evntTs, _      := time.Parse(newLongForm, anom.Time)
-                anom.EpochTime  = evntTs.Unix()
-                anomObjects     = append(anomObjects, *anom)
+                evntTs, _       := time.Parse(newLongForm, anom.Time)
+                anom.EpochTime   = evntTs.Unix()
+                anomObjects      = append(anomObjects, *anom)
                 if numLines % 1000000 == 0 {
                     fmt.Printf("%d\tnew %s epoch: %d\n", numLines, anom.Time, anom.EpochTime)
                 }
@@ -224,20 +224,20 @@ func SortMergeAnomalyFile(newFilePath string, newExtension string, oldFilePath s
             if len(lineComponents) >= 5 {
                 anom            := new(Anomaly)
 
-                anom.Id         = lineComponents[0]
-                anom.Anomaly    = lineComponents[1]
-                anom.DeviceId   = lineComponents[2]
-                anom.DevicePh   = lineComponents[3]
-                anom.DeviceType = lineComponents[4]
-                anom.Feeder     = lineComponents[5]
-                anom.Signal     = lineComponents[6]
-                anom.Value      = "0"
-                anom.Time       = lineComponents[7]
+                anom.Id          = lineComponents[0]
+                anom.Anomaly     = lineComponents[1]
+                anom.DeviceId    = lineComponents[2]
+                anom.DevicePhase = lineComponents[3]
+                anom.DeviceType  = lineComponents[4]
+                anom.FeederId    = lineComponents[5]
+                anom.Signal      = lineComponents[6]
+                anom.Value       = "0"
+                anom.Time        = lineComponents[7]
 
-                evntTs, _      := time.Parse(oldLongForm, anom.Time)
-                anom.EpochTime  = evntTs.Unix()
-                anom.Time       = fmt.Sprintf("%s", evntTs)
-                anomObjects     = append(anomObjects, *anom)
+                evntTs, _       := time.Parse(oldLongForm, anom.Time)
+                anom.EpochTime   = evntTs.Unix()
+                anom.Time        = fmt.Sprintf("%s", evntTs)
+                anomObjects      = append(anomObjects, *anom)
 
                 if numLines % 100000 == 0 {
                     fmt.Printf("%d\told %s epoch: %d\n", numLines, anom.Time, anom.EpochTime)
@@ -265,7 +265,7 @@ func SortMergeAnomalyFile(newFilePath string, newExtension string, oldFilePath s
     }
     line := ""
     for _, anom := range anomObjects {
-        line = anom.Id + "," + anom.Anomaly + "," + anom.DeviceId + "," + anom.DevicePh + "," + anom.DeviceType + "," + anom.Feeder + "," +
+        line = anom.Id + "," + anom.Anomaly + "," + anom.DeviceId + "," + anom.DevicePhase + "," + anom.DeviceType + "," + anom.FeederId + "," +
             anom.Signal + "," + anom.Value + "," + anom.Time
         writer.WriteString(fmt.Sprintf("%s\n", line))
     }
@@ -273,14 +273,33 @@ func SortMergeAnomalyFile(newFilePath string, newExtension string, oldFilePath s
 }
 
 type Anomaly struct {
-    Id         string
-    Anomaly    string
-    DeviceId   string
-    DevicePh   string
-    DeviceType string
-    Feeder     string
-    Signal     string
-    Value      string
-    Time       string
-    EpochTime  int64
+    Id          string
+    Anomaly     string
+    DeviceId    string
+    DevicePhase string
+    DeviceType  string
+    FeederId    string
+    Signal      string
+    Value       string
+    Time        string
+    EpochTime   int64
+}
+
+func (a *Anomaly) Populate(id string, anomaly string, deviceId string, devicePhase string, deviceType string,
+    feederId string, signal string, value string, tm time.Time) {
+    a.Id          = id
+    a.Anomaly     = anomaly
+    a.DeviceId    = deviceId
+    a.DevicePhase = devicePhase
+    a.DeviceType  = deviceType
+    a.FeederId    = feederId
+    a.Signal      = signal
+    a.Value       = value
+    a.Time        = tm.String()
+    a.EpochTime   = tm.Unix()
+}
+
+func (a *Anomaly) Format() string {
+    return fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%d",
+        a.Id, a.Anomaly, a.DeviceId, a.DevicePhase, a.DeviceType, a.FeederId, a.Signal, a.Value, a.Time, a.EpochTime)
 }
