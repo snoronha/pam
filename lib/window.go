@@ -1,6 +1,7 @@
 package lib
 
 import (
+    "math"
     "time"
 )
 
@@ -34,6 +35,22 @@ func (w *Window) Mean() float64 {
         numElems++
     }
     return sum/float64(numElems)
+}
+
+func (w *Window) StdDeviation() float64 {
+    numElems := 0
+    sumSq    := 0.0
+    start    := w.StartPointer
+    end      := w.EndPointer
+    mean     := w.Mean()
+    if w.StartPointer > w.EndPointer {
+        end = w.EndPointer + w.MAXSIZE
+    }
+    for i := start; i <= end; i++ {
+        sumSq += (w.value[i % w.MAXSIZE] - mean) * (w.value[i % w.MAXSIZE] - mean)
+        numElems++
+    }
+    return math.Sqrt(sumSq/float64(numElems))
 }
 
 func (w *Window) QuantileGreaterThanThreshold(quantile float64, threshold float64, minElements int) bool {

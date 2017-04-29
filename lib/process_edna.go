@@ -106,6 +106,7 @@ func processEDNAFile(fileName string, fileTag string, fileNum int, writer *bufio
     var zeroPowerWindows   map[string]Window = make(map[string]Window)
     var zeroVoltageWindows map[string]Window = make(map[string]Window)
     var pfSpikesWindows    map[string]Window = make(map[string]Window)
+    var thdSpikesWindows   map[string]Window = make(map[string]Window)
 
     fdrRegexp, _   := regexp.Compile(`\.([0-9]{6})[\._]`)
     phaseRegexp, _ := regexp.Compile(`\.([ABC\-])_PH`)
@@ -324,7 +325,25 @@ func processEDNAFile(fileName string, fileTag string, fileNum int, writer *bufio
                 }
 
                 if processAnomaly["THD_SPIKES_V3"] && strings.Contains(extendedId, ".THD_") && strings.Contains(extendedId, "urrent") {
-                    anomalyCount["THD_SPIKES_V3"]++;
+                    value, _ := strconv.ParseFloat(strings.Replace(lineComponents[2], "\"", "", -1), 64)
+                    _, ok := thdSpikesWindows[extendedId]
+                    if !ok {
+                        thdSpikesWindows[extendedId] = Window{StartPointer: 0, EndPointer: -1, MAXSIZE: 1000}
+                    }
+                    thdSpikesWindow := thdSpikesWindows[extendedId]
+                    thdSpikesWindow.AddElement(ts, extendedId, value)
+                    thdSpikesWindow.SetStartPointer()
+                    mean      := thdSpikesWindow.Mean()
+                    stdDev    := thdSpikesWindow.StdDeviation()
+                    threshold := mean + 7.0 * stdDev
+                    if value > threshold {
+                        valueString := fmt.Sprintf("%.3f", value)
+                        deviceId := strings.Split(strings.Split(extendedId, ".")[2], "_")[1]
+                        anomaly     := new(Anomaly)
+                        anomaly.Populate("0", "THD_SPIKES_V3", deviceId, devicePhase, "PHASER", feederId, extendedId, valueString, ts)
+                        anomalies    = append(anomalies, *anomaly)
+                    }
+                    thdSpikesWindows[extendedId] = thdSpikesWindow
                 }
 
                 if numLines % 1000000 == 0 {
@@ -341,7 +360,7 @@ func processEDNAFile(fileName string, fileTag string, fileNum int, writer *bufio
                 return anomalies[i].EpochTime < anomalies[j].EpochTime
             }
         })
-        // filter anomalies with the same extendedId and within 1 hour
+        // filter anomalies with the same extendedId and within 3 minutes
         for _, anomaly := range anomalies {
             anomalyType := anomaly.Anomaly
             if _, ok := anomalyMap[anomalyType][anomaly.Signal]; !ok {
@@ -349,7 +368,7 @@ func processEDNAFile(fileName string, fileTag string, fileNum int, writer *bufio
                 filteredAnomalies = append(filteredAnomalies, anomaly)
                 anomalyCount[anomalyType]++
             } else {
-                if anomaly.EpochTime - anomalyMap[anomalyType][anomaly.Signal] >= 180 { // difference is > 1 hr
+                if anomaly.EpochTime - anomalyMap[anomalyType][anomaly.Signal] >= 180 { // difference is > 3 minutes
                     anomalyMap[anomalyType][anomaly.Signal] = anomaly.EpochTime
                     filteredAnomalies = append(filteredAnomalies, anomaly)
                     anomalyCount[anomalyType]++
