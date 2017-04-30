@@ -5,7 +5,7 @@ import (
     "os"
     "regexp"
     "strconv"
-    "anomaly/lib"
+    "pam/lib"
 )
 
 
@@ -42,7 +42,7 @@ func main() {
         lib.ProcessEDNA(startFileNumber, endFileNumber, monthlyOrBulk, awsOrLocal)
         // lib.ProcessAMI(startFileNumber, endFileNumber, monthlyOrBulk, awsOrLocal)
     } else {
-        fmt.Println("Usage:   anomaly <startFileNumber> <endFileNumber> <monthlyOrBulk> <awsOrLocal>\nExample: anomaly 0 -1 monthly aws")
+        fmt.Println("Usage:   anomaly <startFileNumber> <endFileNumber> <monthlyOrBulk> <awsOrLocal>\nExample: anomaly 0 -1 bulk local")
     }
 
     // lib.CompareAllAnomsWithEDNAAnoms()
