@@ -142,7 +142,7 @@ for file_name in csv_files:
     process_edna_file(file_name, file_path, file_count, anomaly_count)
 """
 
-# process_anoms_in_all_anoms("/Users/sanjaynoronha/Desktop/all_anoms.csv")
+process_anoms_in_all_anoms("../output/edna_bulk_0_999.csv")
 # process_anoms_in_all_anoms("/Users/sanjaynoronha/Desktop/edna_out_0_950.csv")
-filter_all_anoms_by_date("/Users/sanjaynoronha/Desktop/all_anoms.csv", "/Users/sanjaynoronha/Desktop/all_anoms_feb2015.csv", "/Users/sanjaynoronha/Desktop/all_anoms_after_feb2015.csv")
+# filter_all_anoms_by_date("/Users/sanjaynoronha/Desktop/all_anoms.csv", "/Users/sanjaynoronha/Desktop/all_anoms_feb2015.csv", "/Users/sanjaynoronha/Desktop/all_anoms_after_feb2015.csv")
 # compare_old_with_new_anoms("/Users/sanjaynoronha/Desktop/all_anoms_feb2015.csv", "/Users/sanjaynoronha/Desktop/edna_out.txt")

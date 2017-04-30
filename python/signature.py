@@ -228,7 +228,7 @@ class SignatureTransformer(object):
         A DataFrame with an index column of feeder IDs, and a column named
         "CUSTOMERS" with a count of the number of customers on the feeder. Also
         columns for each "constant" or "duration" variables required.
-
+z
     n_jobs : int, optional (default=1)
         The number of cores to parallelize over.
 
