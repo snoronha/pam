@@ -1,0 +1,17 @@
+name,lookup,type,min_lag,max_lag,keep_all
+BKR_CLOSE_24,BKR_CLOSE,background,0,24,True
+BKR_CLUSTER_24,BKR_OPEN,cluster,0,24,False
+BKR_CLUSTER_168,BKR_OPEN,cluster,0,168,False
+BKR_OPEN_24,BKR_OPEN,background,0,24,True
+SUBSTATION_FAULT_24,SUBSTATION_FAULT,trigger,0,24,False
+FEEDER_FAULT_24,FEEDER_FAULT,background,0,24,False
+CURRENT_LIMIT_24,CURRENT_LIMIT,flag,0,24,False
+HARDENING,HARDENING,duration,0,0,False
+HIGH_VOLTAGE_24,HIGH_VOLTAGE,flag,0,24,False
+KV,KV,constant,0,0,False
+LG_PD_10_24,LG_PD_10,background,0,24,False
+PCT_UG,PCT_UG,constant,0,0,False
+PF_SPIKES_24,PF_SPIKES,background,0,24,False
+THD_SPIKES_24,THD_SPIKES,background,0,24,False
+VOLTAGE_DROP_24,VOLTAGE_DROP,flag,0,24,False
+ZERO_RULE_24,ZERO_RULE,background,0,24,False
