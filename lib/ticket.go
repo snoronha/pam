@@ -2,9 +2,11 @@ package lib
 
 import (
     "bufio"
+    "fmt"
     "io/ioutil"
     "log"
     "os"
+    "sort"
     "strings"
     "time"
 )
@@ -35,10 +37,11 @@ type Ticket struct {
     RepairActionStatePlaneX string
     RepairActionStatePlaneY string
     CurrentRowFlag          string
+    PowerOffEpoch           int64
 }
 
 func (t *Ticket) Create(ticketLine string) {
-    longForm        := "2006-01-02 15:04:05"
+    longForm        := "01-02-2006 15:04:05"
     lineComponents  := strings.Split(ticketLine, ",")
     t.TicketKey                 = strings.Replace(lineComponents[0], "\"", "", -1)
     t.FeederNumber              = strings.Replace(lineComponents[1], "\"", "", -1)
@@ -63,6 +66,8 @@ func (t *Ticket) Create(ticketLine string) {
     t.RepairActionStatePlaneX   = strings.Replace(lineComponents[20], "\"", "", -1)
     t.RepairActionStatePlaneY   = strings.Replace(lineComponents[21], "\"", "", -1)
     t.CurrentRowFlag            = strings.Replace(lineComponents[22], "\"", "", -1)
+
+    t.PowerOffEpoch             = t.PowerOff.Unix()
 }
 
 func GetTicketMap(dirName string) map[string][]Ticket {
@@ -70,6 +75,7 @@ func GetTicketMap(dirName string) map[string][]Ticket {
     files, _  := ioutil.ReadDir(dirName)
     for _, f  := range files {
         filePath := dirName + "/" + f.Name()
+        fmt.Printf("Doing %s\n", f.Name())
         if strings.Contains(f.Name(), "TICKETS") && strings.Contains(f.Name(), ".csv") {
             if file, err := os.Open(filePath); err == nil {
                 defer file.Close()
@@ -81,7 +87,10 @@ func GetTicketMap(dirName string) map[string][]Ticket {
                         if len(strings.Split(line, ",")) >= 5 {
                             ticket := new(Ticket)
                             ticket.Create(line)
-                            ticketMap[ticket.FeederNumber] = append(ticketMap[ticket.FeederNumber], *ticket)
+                            // only use tickets with IrptCauseCode in {188, 189}
+                            if ticket.IrptCauseCode == "188" || ticket.IrptCauseCode == "189" {
+                                ticketMap[ticket.FeederNumber] = append(ticketMap[ticket.FeederNumber], *ticket)
+                            }
                         }
                     }
                     lineCount++
@@ -94,6 +103,11 @@ func GetTicketMap(dirName string) map[string][]Ticket {
             }
         }
     }
-    
+    // sort all ticket arrays (by feeder) in ticketMap
+    for k, _ := range ticketMap {
+        sort.Slice(ticketMap[k], func(i, j int) bool {
+            return ticketMap[k][i].PowerOffEpoch < ticketMap[k][j].PowerOffEpoch
+        })
+    }
     return ticketMap
 }
