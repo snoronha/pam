@@ -82,7 +82,7 @@ func GetAnomalies(fileName string) map[string][]Anomaly {
                 }
             }
             if lineNum % 1000000 == 0 {
-                fmt.Printf("Reading %d ...\n", lineNum)
+                // fmt.Printf("Reading %d ...\n", lineNum)
             }
             lineNum++
         }

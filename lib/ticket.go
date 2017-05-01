@@ -71,12 +71,13 @@ func (t *Ticket) Create(ticketLine string) {
 }
 
 func GetTicketMap(dirName string) map[string][]Ticket {
+    var tmpMap map[string][]Ticket = make(map[string][]Ticket)
     var ticketMap map[string][]Ticket = make(map[string][]Ticket)
     files, _  := ioutil.ReadDir(dirName)
     for _, f  := range files {
         filePath := dirName + "/" + f.Name()
-        fmt.Printf("Doing %s\n", f.Name())
         if strings.Contains(f.Name(), "TICKETS") && strings.Contains(f.Name(), ".csv") {
+            fmt.Printf("Doing %s\n", f.Name())
             if file, err := os.Open(filePath); err == nil {
                 defer file.Close()
                 scanner   := bufio.NewScanner(file)
@@ -88,8 +89,13 @@ func GetTicketMap(dirName string) map[string][]Ticket {
                             ticket := new(Ticket)
                             ticket.Create(line)
                             // only use tickets with IrptCauseCode in {188, 189}
-                            if ticket.IrptCauseCode == "188" || ticket.IrptCauseCode == "189" {
-                                ticketMap[ticket.FeederNumber] = append(ticketMap[ticket.FeederNumber], *ticket)
+                            if (ticket.IrptCauseCode == "188" || ticket.IrptCauseCode == "189") &&
+                                (ticket.IrptTypeCode == "FDR" || ticket.IrptTypeCode == "OCR") {
+                                // ticketMap[ticket.FeederNumber] = append(ticketMap[ticket.FeederNumber], *ticket)
+                                if _, ok := tmpMap[ticket.TicketKey]; !ok {
+                                    tmpMap[ticket.TicketKey] = make([]Ticket, 0)
+                                }
+                                tmpMap[ticket.TicketKey] = append(tmpMap[ticket.TicketKey], *ticket)
                             }
                         }
                     }
@@ -102,6 +108,18 @@ func GetTicketMap(dirName string) map[string][]Ticket {
                 log.Fatal(err)
             }
         }
+    }
+
+    // cycle through tmpMap and construct ticketMap
+    for k, _ := range tmpMap {
+        sort.Slice(tmpMap[k], func(i, j int) bool {
+            return tmpMap[k][i].PowerOffEpoch < tmpMap[k][j].PowerOffEpoch
+        })
+        firstTicket := tmpMap[k][0]
+        if _, ok := ticketMap[firstTicket.FeederNumber]; !ok {
+            ticketMap[firstTicket.FeederNumber] = make([]Ticket, 0)
+        }
+        ticketMap[firstTicket.FeederNumber] = append(ticketMap[firstTicket.FeederNumber], firstTicket)
     }
     // sort all ticket arrays (by feeder) in ticketMap
     for k, _ := range ticketMap {
