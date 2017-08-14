@@ -4,32 +4,33 @@ Anomaly processing for FPL (currently) written in Go.
 
 ## Code Structure
 
-`pam`
-│   `README.md` (this file)
+```
+pam
+│   README.md                (this file)
 │
-└───`anomaly`
-│   │   `main.go` (anomaly processing with command-line args)
+└───anomaly
+│   │   main.go              (anomaly processing with command-line args)
 │   │
 └───lib
-│   │   `ami.go` (AMI record structure)
-│   │   `anomaly.go` (Anomaly structure with utilities)
-│   │   `anomaly_map.go` (maps from computed anomal names to final anomaly names for 3 models)
-│   │   `compare.go` (utilities for comparing Python anomalies with Go anomalies)
-│   │   `dataset.go` (structure to encapsulate different datasets)
-│   │   `edna.go` (EDNA record structure)
-│   │   `feeder.go` (Feeder record structure)
-│   │   `process_ami.go` (process AMI anomalies)
-│   │   `process_edna.go` (process EDNA anomalies)
-│   │   `process_scada.go` (process SCADA anomalies)
-│   │   `process_signature.go` (process signatures)
-│   │   `s3.go` (utilities to read/write S3 buckets for monthly data)
-│   │   `ticket.go` (Ticket record structure)
-│   │   `util.go` (utils for signature processing)
-│   │   `window.go` (moving time-window implementation)
+│   │   ami.go               (AMI record structure)
+│   │   anomaly.go           (Anomaly structure with utilities)
+│   │   anomaly_map.go       (maps from computed anomal names to final anomaly names for 3 models)
+│   │   compare.go           (utilities for comparing Python anomalies with Go anomalies)
+│   │   dataset.go           (structure to encapsulate different datasets)
+│   │   edna.go              (EDNA record structure)
+│   │   feeder.go            (Feeder record structure)
+│   │   process_ami.go       (process AMI anomalies)
+│   │   process_edna.go      (process EDNA anomalies)
+│   │   process_scada.go     (process SCADA anomalies)
+│   │   process_signature.go (process signatures)
+│   │   s3.go                (utilities to read/write S3 buckets for monthly data)
+│   │   ticket.go            (Ticket record structure)
+│   │   util.go              (utils for signature processing)
+│   │   window.go            (moving time-window implementation)
 │   │
 └───output
-│   │   ... (output files written here)
-│   │
+│   │   ...                  (output files written here)
+```
 
 ## Motivation
 
@@ -46,6 +47,13 @@ Anomaly processing for FPL (currently) written in Go. The Python code had seriou
 * git clone https://github.com/snoronha/pam
 * cd pam/anomaly
 * go install # *this will install a binary `anomaly` in $GOPATH/bin*
+
+## Operation
+
+* `../../bin/anomaly <startFileNumber> <endFileNumber> <monthlyOrBulk> <awsOrLocal>`
+```
+    ../../bin/anomaly 0 -1 bulk local
+```
 
 ## Tests
 
