@@ -50,10 +50,20 @@ Anomaly processing for FPL (currently) written in Go. The Python code had seriou
 
 ## Operation
 
-* `../../bin/anomaly <startFileNumber> <endFileNumber> <monthlyOrBulk> <awsOrLocal>`
+Running anomaly extraction:
+```
+    ../../bin/anomaly <startFileNumber> <endFileNumber> <monthlyOrBulk> <awsOrLocal>
+```
+For example:
 ```
     ../../bin/anomaly 0 -1 bulk local
 ```
+
+Processing a single input file:
+* cd src/pam
+* Edit `../lib/process_<anomaly_type>.go` (e.g. edit process_edna.go line 89 to only process 401636.csv)
+* go install
+* Execute anomaly with parameters
 
 ## Tests
 
