@@ -13,7 +13,7 @@ import (
     "time"
 )
 
-func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, awsOrLocal string) {
+func ProcessAMI(startFileNumber int, endFileNumber int, isBulk bool, isLocal bool) {
     var MAX_AMI_KEYS int64 = 100000
     amiAnomalyCount   := map[string]int{ "LG_PD_10": 0, "LG_PD_10_V2": 0, }
 
@@ -23,7 +23,7 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
     // output file writer - handles AWS/local
     var writer *bufio.Writer
 	var odir string
-	if awsOrLocal == "local" {
+	if isLocal {
         odir   = "/Users/sanjaynoronha/Desktop/"
         customerMap = readFeederMetadata("/Users/sanjaynoronha/go/src/anomaly/data/feeder_metadata.csv")
 	} else {
@@ -32,6 +32,12 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
 	}
 
     // create output file writer
+    var monthlyOrBulk string
+    if isBulk {
+        monthlyOrBulk = "bulk"
+    } else {
+        monthlyOrBulk = "monthly"
+    }
     ofileName := odir + "ami_" + monthlyOrBulk + "_" + strconv.Itoa(startFileNumber) + "_" + strconv.Itoa(endFileNumber) + ".csv"
     if ofile, err := os.Create(ofileName); err == nil {
         defer ofile.Close()
@@ -42,8 +48,8 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
 
     startTime := time.Now()
     fileNum   := 0
-    if monthlyOrBulk == "monthly" {
-        if awsOrLocal == "local" {
+    if ! isBulk {
+        if isLocal {
             dir       := "/Volumes/auto-grid-pam/DISK1/pam-monthly-anomalies"
             dirs, _   := ioutil.ReadDir(dir)
             for _, d  := range dirs {
@@ -53,7 +59,7 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
                     filePath := monthlyDir + "/" + f.Name()
                     if strings.Contains(f.Name(), ".csv") {
                         if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
-                            processAMIFile(filePath, filePath, fileNum, writer, startTime, amiAnomalyCount, customerMap, monthlyOrBulk)
+                            processAMIFile(filePath, filePath, fileNum, writer, startTime, amiAnomalyCount, customerMap, isBulk)
                             writer.Flush()
                         }
                         fileNum++
@@ -69,7 +75,7 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
             for _, fileName := range objects {
                 if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
                     GetAWSFile(svc, bucket, fileName, ofileName)
-                    processAMIFile(ofileName, fileName, fileNum, writer, startTime, amiAnomalyCount, customerMap, monthlyOrBulk)
+                    processAMIFile(ofileName, fileName, fileNum, writer, startTime, amiAnomalyCount, customerMap, isBulk)
                     writer.Flush()
                 }
                 fileNum++
@@ -82,7 +88,7 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
             filePath := dir + "/" + f.Name()
             if strings.Contains(f.Name(), ".csv") {
                 if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "ami_100231.csv") {
-                    processAMIFile(filePath, filePath, fileNum, writer, startTime, amiAnomalyCount, customerMap, monthlyOrBulk)
+                    processAMIFile(filePath, filePath, fileNum, writer, startTime, amiAnomalyCount, customerMap, isBulk)
                     writer.Flush()
                 }
                 fileNum++
@@ -93,7 +99,7 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
 
 
 func processAMIFile(fileName string, fileTag string, fileNum int, writer *bufio.Writer,
-    startTime time.Time, anomalyCount map[string]int, customerMap map[string]int64, monthlyOrBulk string) {
+    startTime time.Time, anomalyCount map[string]int, customerMap map[string]int64, isBulk bool) {
     longForm := "2006-01-02 15:04:05"
     monthlyLongForm := "1/2/2006 3:04:05 PM"
 	
@@ -134,7 +140,7 @@ func processAMIFile(fileName string, fileTag string, fileNum int, writer *bufio.
                 if strings.HasPrefix(ami.AmiDvcName, "G") &&
                     (strings.Contains(ami.MtrEvntId, "12007") || strings.Contains(ami.MtrEvntId, "12024")) {
                     numAmiLines++
-                    if monthlyOrBulk == "bulk" {
+                    if isBulk {
                         matches := mtrTmstmpRegexp.FindStringSubmatch(ami.MtrEvntTmstmp)
                         if len(matches) > 0 {
                             modTmstmp = matches[1] + "-" + matches[2] + "-" + matches[3] + " " + matches[4] + ":" + matches[5] + ":00"
