@@ -95,6 +95,15 @@ func GetAnomalies(fileName string) map[string][]Anomaly {
     return anomaliesMap
 }
 
+func TruncateAnomalyTimes(anomalies map[string][]Anomaly) {
+    for feederId, _ := range anomalies {
+        for i, _ := range anomalies[feederId] {
+            remainder := anomalies[feederId][i].EpochTime % 60
+            anomalies[feederId][i].EpochTime -= remainder
+        }
+    }
+}
+
 func (a *Anomaly) Format() string {
     return fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%d",
         a.Id, a.Anomaly, a.DeviceId, a.DevicePhase, a.DeviceType, a.FeederId, a.Signal, a.Value, a.Time, a.EpochTime)
