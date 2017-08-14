@@ -92,7 +92,7 @@ func ProcessEDNA(startFileNumber int, endFileNumber int, isBulk bool, isLocal bo
         for _, f  := range files {
             filePath := dir + "/" + f.Name()
             if strings.Contains(f.Name(), ".csv") {
-                if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) && strings.Contains(f.Name(), "401636.csv") {
+                if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "401636.csv") {
                     processEDNAFile(filePath, filePath, fileNum, writer, startTime, ednaAnomalyCount, processEdnaAnomaly)
                     writer.Flush()
                 }

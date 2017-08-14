@@ -52,11 +52,11 @@ Anomaly processing for FPL (currently) written in Go. The Python code had seriou
 
 Running anomaly extraction:
 ```
-    ../../bin/anomaly <startFileNumber> <endFileNumber> <monthlyOrBulk> <awsOrLocal>
+    ../../bin/anomaly -start=<startFileNumber> -end=<endFileNumber> -bulk=<bulkOrMonthly> -local=<localOrAWS>
 ```
 For example:
 ```
-    ../../bin/anomaly 0 -1 bulk local
+    ../../bin/anomaly -start=0 -end=-1 -bulk=true -local=true
 ```
 
 Processing a single input file:
