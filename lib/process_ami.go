@@ -24,11 +24,11 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
     var writer *bufio.Writer
 	var odir string
 	if awsOrLocal == "local" {
-		odir   = "/Users/sanjaynoronha/Desktop/"
-		customerMap = readFeederMetadata("/Users/sanjaynoronha/go/src/anomaly/data/feeder_metadata.csv")
+        odir   = "/Users/sanjaynoronha/Desktop/"
+        customerMap = readFeederMetadata("/Users/sanjaynoronha/go/src/anomaly/data/feeder_metadata.csv")
 	} else {
-		odir   = "/home/ubuntu/go/src/anomaly/"
-		customerMap = readFeederMetadata("//home/ubuntu/go/src/anomaly/data/feeder_metadata.csv")
+        odir   = "/home/ubuntu/go/src/anomaly/"
+        customerMap = readFeederMetadata("//home/ubuntu/go/src/anomaly/data/feeder_metadata.csv")
 	}
 
     // create output file writer
@@ -43,38 +43,38 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
     startTime := time.Now()
     fileNum   := 0
     if monthlyOrBulk == "monthly" {
-		if awsOrLocal == "local" {
-			dir       := "/Volumes/auto-grid-pam/DISK1/pam-monthly-anomalies"
-			dirs, _   := ioutil.ReadDir(dir)
-			for _, d  := range dirs {
-				monthlyDir := dir + "/" + d.Name()
-				files, _  := ioutil.ReadDir(monthlyDir)
-				for _, f  := range files {
-					filePath := monthlyDir + "/" + f.Name()
-					if strings.Contains(f.Name(), ".csv") {
-						if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
-							processAMIFile(filePath, filePath, fileNum, writer, startTime, amiAnomalyCount, customerMap, monthlyOrBulk)
-							writer.Flush()
-						}
-						fileNum++
-					}
-				}
-			}
-		} else { // awsOrLocal == "aws"
-			svc       := GetAWSService("us-west-2")
-			bucket    := "pam-monthly-anomalies"
-			objects   := GetAWSObjectNames(svc, bucket, MAX_AMI_KEYS, "AMI")
-			ofileName := "current_file_" + strconv.Itoa(startFileNumber) + "_" + strconv.Itoa(endFileNumber) + ".csv"
-			fmt.Printf("%d object names retrieved ...\n", len(objects))
-			for _, fileName := range objects {
-				if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
-					GetAWSFile(svc, bucket, fileName, ofileName)
-					processAMIFile(ofileName, fileName, fileNum, writer, startTime, amiAnomalyCount, customerMap, monthlyOrBulk)
-					writer.Flush()
-				}
-				fileNum++
-			}
-		}
+        if awsOrLocal == "local" {
+            dir       := "/Volumes/auto-grid-pam/DISK1/pam-monthly-anomalies"
+            dirs, _   := ioutil.ReadDir(dir)
+            for _, d  := range dirs {
+                monthlyDir := dir + "/" + d.Name()
+                files, _  := ioutil.ReadDir(monthlyDir)
+                for _, f  := range files {
+                    filePath := monthlyDir + "/" + f.Name()
+                    if strings.Contains(f.Name(), ".csv") {
+                        if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
+                            processAMIFile(filePath, filePath, fileNum, writer, startTime, amiAnomalyCount, customerMap, monthlyOrBulk)
+                            writer.Flush()
+                        }
+                        fileNum++
+                    }
+                }
+            }
+        } else { // awsOrLocal == "aws"
+            svc       := GetAWSService("us-west-2")
+            bucket    := "pam-monthly-anomalies"
+            objects   := GetAWSObjectNames(svc, bucket, MAX_AMI_KEYS, "AMI")
+            ofileName := "current_file_" + strconv.Itoa(startFileNumber) + "_" + strconv.Itoa(endFileNumber) + ".csv"
+            fmt.Printf("%d object names retrieved ...\n", len(objects))
+            for _, fileName := range objects {
+                if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
+                    GetAWSFile(svc, bucket, fileName, ofileName)
+                    processAMIFile(ofileName, fileName, fileNum, writer, startTime, amiAnomalyCount, customerMap, monthlyOrBulk)
+                    writer.Flush()
+                }
+                fileNum++
+            }
+        }
     } else {
         dir       := "/Volumes/auto-grid-pam/DISK1/bulk_data/ami"
         files, _  := ioutil.ReadDir(dir)
@@ -93,9 +93,9 @@ func ProcessAMI(startFileNumber int, endFileNumber int, monthlyOrBulk string, aw
 
 
 func processAMIFile(fileName string, fileTag string, fileNum int, writer *bufio.Writer,
-	startTime time.Time, anomalyCount map[string]int, customerMap map[string]int64, monthlyOrBulk string) {
-	longForm := "2006-01-02 15:04:05"
-	monthlyLongForm := "1/2/2006 3:04:05 PM"
+    startTime time.Time, anomalyCount map[string]int, customerMap map[string]int64, monthlyOrBulk string) {
+    longForm := "2006-01-02 15:04:05"
+    monthlyLongForm := "1/2/2006 3:04:05 PM"
 	
     // open file
     if file, err := os.Open(fileName); err == nil {
@@ -108,7 +108,7 @@ func processAMIFile(fileName string, fileTag string, fileNum int, writer *bufio.
         var amiObjects []AMI
         hashMap     := make(map[int64]map[string][]AMI)
 
-		mtrTmstmpRegexp, _   := regexp.Compile(`([0-9]{4})-([0-9]{2})-([0-9]{2}) ([0-9]{2}):([0-9]{2}):([0-9]{2})`) // 2014-08-04 12:49:39-04
+        mtrTmstmpRegexp, _   := regexp.Compile(`([0-9]{4})-([0-9]{2})-([0-9]{2}) ([0-9]{2}):([0-9]{2}):([0-9]{2})`) // 2014-08-04 12:49:39-04
 
         // create a new scanner and read the file line by line
         scanner  := bufio.NewScanner(file)
@@ -134,25 +134,25 @@ func processAMIFile(fileName string, fileTag string, fileNum int, writer *bufio.
                 if strings.HasPrefix(ami.AmiDvcName, "G") &&
                     (strings.Contains(ami.MtrEvntId, "12007") || strings.Contains(ami.MtrEvntId, "12024")) {
                     numAmiLines++
-					if monthlyOrBulk == "bulk" {
-						matches := mtrTmstmpRegexp.FindStringSubmatch(ami.MtrEvntTmstmp)
-						if len(matches) > 0 {
-							modTmstmp = matches[1] + "-" + matches[2] + "-" + matches[3] + " " + matches[4] + ":" + matches[5] + ":00"
-							evntTs, _ := time.Parse(longForm, modTmstmp)
-							ami.MtrEvntEpoch = evntTs.Unix()
-						}
-					} else {
-						evntTs, _ := time.Parse(monthlyLongForm, ami.MtrEvntTmstmp)
-						ami.MtrEvntEpoch = evntTs.Unix()						
-					}
-					amiObjects  = append(amiObjects, *ami)
-					if _, ok := hashMap[ami.MtrEvntEpoch]; !ok {
-						hashMap[ami.MtrEvntEpoch] = make(map[string][]AMI)
-					}
-					if _, ok := hashMap[ami.MtrEvntEpoch][ami.AmiDvcName]; !ok {
-						hashMap[ami.MtrEvntEpoch][ami.AmiDvcName] = make([]AMI, 0)
-					}
-					hashMap[ami.MtrEvntEpoch][ami.AmiDvcName] = append(hashMap[ami.MtrEvntEpoch][ami.AmiDvcName], *ami)
+                    if monthlyOrBulk == "bulk" {
+                        matches := mtrTmstmpRegexp.FindStringSubmatch(ami.MtrEvntTmstmp)
+                        if len(matches) > 0 {
+                            modTmstmp = matches[1] + "-" + matches[2] + "-" + matches[3] + " " + matches[4] + ":" + matches[5] + ":00"
+                            evntTs, _ := time.Parse(longForm, modTmstmp)
+                            ami.MtrEvntEpoch = evntTs.Unix()
+                        }
+                    } else {
+                        evntTs, _ := time.Parse(monthlyLongForm, ami.MtrEvntTmstmp)
+                        ami.MtrEvntEpoch = evntTs.Unix()
+                    }
+                    amiObjects  = append(amiObjects, *ami)
+                    if _, ok := hashMap[ami.MtrEvntEpoch]; !ok {
+                        hashMap[ami.MtrEvntEpoch] = make(map[string][]AMI)
+                    }
+                    if _, ok := hashMap[ami.MtrEvntEpoch][ami.AmiDvcName]; !ok {
+                        hashMap[ami.MtrEvntEpoch][ami.AmiDvcName] = make([]AMI, 0)
+                    }
+                    hashMap[ami.MtrEvntEpoch][ami.AmiDvcName] = append(hashMap[ami.MtrEvntEpoch][ami.AmiDvcName], *ami)
 
                 }
             }

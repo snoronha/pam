@@ -15,7 +15,7 @@ import (
 )
 
 func ProcessEDNA(startFileNumber int, endFileNumber int, monthlyOrBulk string, awsOrLocal string) {
-	var MAX_EDNA_KEYS int64 = 100000
+    var MAX_EDNA_KEYS int64 = 100000
     processEdnaAnomaly := map[string]bool{
         "AFS_ALARM_ALARM": true,  "AFS_GROUND_ALARM": true, "AFS_I_FAULT_FULL": true, "AFS_I_FAULT_TEMP": true, "AFS_I_FAULT_NEW": true,
         "FCI_FAULT_ALARM": true,  "FCI_I_FAULT_FULL": true, "FCI_I_FAULT_TEMP": true, "FCI_I_FAULT_NEW":  true,
@@ -30,12 +30,12 @@ func ProcessEDNA(startFileNumber int, endFileNumber int, monthlyOrBulk string, a
     }
 
     var writer *bufio.Writer
-	var odir string
-	if awsOrLocal == "local" {
-		odir   = "./output/"
-	} else {
-		odir   = "/home/ubuntu/go/src/anomaly/"
-	}
+    var odir string
+    if awsOrLocal == "local" {
+        odir   = "./output/"
+    } else {
+        odir   = "/home/ubuntu/go/src/anomaly/"
+    }
 	
     ofileName := odir + "edna_" + monthlyOrBulk + "_" + strconv.Itoa(startFileNumber) + "_" + strconv.Itoa(endFileNumber) + ".csv"
     if ofile, err := os.Create(ofileName); err == nil {
@@ -48,38 +48,38 @@ func ProcessEDNA(startFileNumber int, endFileNumber int, monthlyOrBulk string, a
     startTime := time.Now()
     fileNum   := 0
     if monthlyOrBulk == "monthly" {
-		if awsOrLocal == "local" {
-			dir       := "/Volumes/auto-grid-pam/DISK1/pam-monthly-anomalies"
-			dirs, _   := ioutil.ReadDir(dir)
-			for _, d  := range dirs {
-				monthlyDir := dir + "/" + d.Name()
-				files, _  := ioutil.ReadDir(monthlyDir)
-				for _, f  := range files {
-					filePath := monthlyDir + "/" + f.Name()
-					if strings.Contains(f.Name(), ".csv") {
-						if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
-							processEDNAFile(filePath, filePath, fileNum, writer, startTime, ednaAnomalyCount, processEdnaAnomaly)
-							writer.Flush()
-						}
-						fileNum++
-					}
-				}
-			}
-		} else { // awsOrLocal == "aws"
-			svc       := GetAWSService("us-west-2")
-			bucket    := "pam-monthly-anomalies"
-			objects   := GetAWSObjectNames(svc, bucket, MAX_EDNA_KEYS, "EDNA")
-			ofileName := "current_file_" + strconv.Itoa(startFileNumber) + "_" + strconv.Itoa(endFileNumber) + ".csv"
-			fmt.Printf("%d object names retrieved ...\n", len(objects))
-			for _, fileName := range objects {
-				if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
-					GetAWSFile(svc, bucket, fileName, ofileName)
-					processEDNAFile(ofileName, fileName, fileNum, writer, startTime, ednaAnomalyCount, processEdnaAnomaly)
-					writer.Flush()
-				}
-				fileNum++
-			}
-		}
+        if awsOrLocal == "local" {
+            dir       := "/Volumes/auto-grid-pam/DISK1/pam-monthly-anomalies"
+            dirs, _   := ioutil.ReadDir(dir)
+            for _, d  := range dirs {
+                monthlyDir := dir + "/" + d.Name()
+                files, _  := ioutil.ReadDir(monthlyDir)
+                for _, f  := range files {
+                    filePath := monthlyDir + "/" + f.Name()
+                    if strings.Contains(f.Name(), ".csv") {
+                        if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
+                            processEDNAFile(filePath, filePath, fileNum, writer, startTime, ednaAnomalyCount, processEdnaAnomaly)
+                            writer.Flush()
+                        }
+                        fileNum++
+                    }
+                }
+            }
+        } else { // awsOrLocal == "aws"
+            svc       := GetAWSService("us-west-2")
+            bucket    := "pam-monthly-anomalies"
+            objects   := GetAWSObjectNames(svc, bucket, MAX_EDNA_KEYS, "EDNA")
+            ofileName := "current_file_" + strconv.Itoa(startFileNumber) + "_" + strconv.Itoa(endFileNumber) + ".csv"
+            fmt.Printf("%d object names retrieved ...\n", len(objects))
+            for _, fileName := range objects {
+                if fileNum >= startFileNumber && (endFileNumber < 0 || fileNum <= endFileNumber) { // && strings.Contains(f.Name(), "803036.csv") {
+                    GetAWSFile(svc, bucket, fileName, ofileName)
+                    processEDNAFile(ofileName, fileName, fileNum, writer, startTime, ednaAnomalyCount, processEdnaAnomaly)
+                    writer.Flush()
+                }
+                fileNum++
+            }
+        }
     } else {
         dir       := "/Volumes/auto-grid-pam/DISK1/bulk_data/edna/response"
         files, _  := ioutil.ReadDir(dir)
