@@ -3,6 +3,7 @@ package lib
 import (
     "bufio"
     "fmt"
+    "go/build"
     "io/ioutil"
     "log"
     "os"
@@ -22,14 +23,8 @@ func ProcessAMI(startFileNumber int, endFileNumber int, isBulk bool, isLocal boo
 
     // output file writer - handles AWS/local
     var writer *bufio.Writer
-	var odir string
-	if isLocal {
-        odir   = "/Users/sanjaynoronha/Desktop/"
-        customerMap = readFeederMetadata("/Users/sanjaynoronha/go/src/anomaly/data/feeder_metadata.csv")
-	} else {
-        odir   = "/home/ubuntu/go/src/anomaly/"
-        customerMap = readFeederMetadata("//home/ubuntu/go/src/anomaly/data/feeder_metadata.csv")
-	}
+    odir := build.Default.GOPATH + "/src/pam/output/"
+    customerMap = readFeederMetadata(build.Default.GOPATH + "/src/pam/data/feeder_metadata.csv")
 
     // create output file writer
     var monthlyOrBulk string

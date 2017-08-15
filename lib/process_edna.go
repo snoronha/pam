@@ -3,6 +3,7 @@ package lib
 import (
     "bufio"
     "fmt"
+    "go/build"
     "io/ioutil"
     "log"
     "math"
@@ -30,12 +31,7 @@ func ProcessEDNA(startFileNumber int, endFileNumber int, isBulk bool, isLocal bo
     }
 
     var writer *bufio.Writer
-    var odir string
-    if isLocal {
-        odir   = "./output/"
-    } else {
-        odir   = "/home/ubuntu/go/src/anomaly/"
-    }
+    odir := build.Default.GOPATH + "/src/pam/output/"
 
     var monthlyOrBulk string
     if isBulk {

@@ -46,24 +46,25 @@ Anomaly processing for FPL (currently) written in Go. The Python code had seriou
 * cd src
 * git clone https://github.com/snoronha/pam
 * cd pam/anomaly
-* go install # *this will install a binary `anomaly` in $GOPATH/bin*
+* go get ./...     # get external dependencies like AWS
+* go install       # *this will install a binary `anomaly` in $GOPATH/bin*
 
 ## Operation
 
 Running anomaly extraction:
 ```
-    ../../bin/anomaly -start=<startFileNumber> -end=<endFileNumber> -bulk=<bulkOrMonthly> -local=<localOrAWS>
+    $GOPATH/bin/anomaly -start=<startFileNumber> -end=<endFileNumber> -bulk=<bulkOrMonthly> -local=<localOrAWS>
 ```
 For example:
 ```
-    ../../bin/anomaly -start=0 -end=-1 -bulk=true -local=true
+    $GOPATH/bin/anomaly -start=0 -end=-1 -bulk=true -local=true
 ```
 
 Processing a single input file:
-* cd src/pam
-* Edit `../lib/process_<anomaly_type>.go` (e.g. edit process_edna.go line 89 to only process 401636.csv)
+* Edit `$GOPATH/src/pam/lib/process_<anomaly_type>.go` (e.g. edit process_edna.go line 89 to only process 401636.csv)
+* cd $GOPATH/src/pam/anomaly
 * go install
-* Execute anomaly with parameters
+* Execute anomaly with parameters e.g. $GOPATH/bin/anomaly -start=0 -end=-1 -bulk=true -local=true
 
 ## Tests
 
